@@ -1,0 +1,52 @@
+### 🛡️ SENSIBLE DATEN – NIEMALS TEILEN!
+# API-Schlüssel, Tokens, Passwörter
+.env
+*.key
+secrets.yaml
+config/secrets.json
+
+# Home Assistant & Shelly Konfigurationen (lokal)
+.homeassistant/
+configuration.yaml
+
+### 🤖 KI-MODELLE & GROSSE DATEN (mehrere GB!)
+# Lokale LLM-Modelle (Ollama, LM Studio)
+models/
+*.gguf
+*.bin
+ollama/models/
+lm-studio/models/
+
+# Trainingsdaten, Logs, Checkpoints
+data/raw/
+data/processed/
+logs/
+checkpoints/
+*.pth
+*.h5
+
+### 🐍 PYTHON
+# Bytecode, virtuelle Umgebungen
+__pycache__/
+*.py[cod]
+venv/
+.venv/
+env/
+
+# Installierte Pakete (werden via requirements.txt neu installiert)
+site-packages/
+
+### 🔧 IDE & EDITOR
+# VS Code
+.vscode/
+!.vscode/settings.json.template
+!.vscode/tasks.json.template
+
+# PyCharm
+.idea/
+*.iml
+
+### 📁 SYSTEM
+.DS_Store
+Thumbs.db
+*.tmp
