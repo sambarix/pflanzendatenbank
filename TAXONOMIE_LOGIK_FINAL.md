@@ -1,5 +1,5 @@
 # TAXONOMIE & MULTILANGUAGE LOGIK - oMioBio PDB
-**Erstellt:** 27. Dezember 2024  
+**Erstellt:** 31. Januar 2026  
 **Zweck:** Präzise Dokumentation der komplexen Namens-Logik  
 **Status:** DEFINIERT - Dies ist die verbindliche Spezifikation!
 
