@@ -2,9 +2,9 @@
 
 ## Pflichtenheft Version 1.1
 
-**Datum:** 04. Februar 2025
-**Erstellt für:** Peter Müller
-**Zweck:** Open Source Tool für Bio-Gärtnereien, Gartenplaner und Gartenbauer
+**Datum:** 04. Februar 2025  
+**Erstellt für:** Peter Müller  
+**Zweck:** Open Source Tool für Bio-Gärtnereien, Gartenplaner und Gartenbauer  
 
 ## 1. PROJEKTZIEL
 
