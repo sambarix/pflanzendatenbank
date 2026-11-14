@@ -1,0 +1,23 @@
+{# pdb-theme: Kopie des quark2-Macros. Einzige Aenderung: Eintraege erscheinen nur, wenn der
+   Besucher die Seite auch oeffnen darf (Seitenkopf "access:", gleiche Logik wie beim Seitenschutz). #}
+{% macro nav_loop(page) %}
+  {% import _self as macros %}
+  {% for p in page.children.visible %}
+    {# Login-Eintrag nur fuer Besucher ohne Konto; angemeldete sehen stattdessen "Abmelden" (partials/navigation) #}
+    {% if (not p.header.access or authorize(p.header.access)) and not (p.route == '/login' and authorize('site.login')) %}
+    {% set active_page = (p.active or p.activeChild) ? 'active' : '' %}
+    {% set has_children = p.children.visible.count > 0 %}
+    <li{% if has_children %} class="has-children"{% endif %}>
+      <a href="{{ p.url }}" class="{{ active_page }}">
+        {% if p.header.menu_icon %}<i class="{{ p.header.menu_icon|fa_icon }}" aria-hidden="true"></i>{% endif %}
+        {{ p.menu }}
+      </a>
+      {% if has_children %}
+      <ul>
+        {{ macros.nav_loop(p) }}
+      </ul>
+      {% endif %}
+    </li>
+    {% endif %}
+  {% endfor %}
+{% endmacro %}

@@ -1,0 +1,965 @@
+{% extends 'partials/base.html.twig' %}
+
+{% block stylesheets %}
+    {{ parent() }}
+    {% do assets.addCss('theme://css/eingabe.css') %}
+{% endblock %}
+
+{% block javascripts %}
+    {{ parent() }}
+    {% do assets.addJs('theme://js/vendor/htmx.2.0.4.min.js', {group: 'bottom'}) %}
+    {% do assets.addJs('theme://js/eingabe.js', {group: 'bottom', defer: true}) %}
+{% endblock %}
+
+{% block content %}
+<script>window.PDB_BASE = '{{ base_url_relative|e('js') }}';</script>
+<div class="pdb-eingabe-container">
+    <h1 class="pdb-eingabe-title">Neue Pflanze erfassen</h1>
+
+    {# === SUCCESS / ERROR MESSAGE === #}
+    <div id="pdb-message" class="pdb-message" style="display:none"></div>
+
+    <form id="pdb-form" onsubmit="return false;">
+
+    {# ============================================================ #}
+    {# SECTION 1: TAXONOMIE (always open)                           #}
+    {# ============================================================ #}
+    <div class="pdb-section pdb-section-open pdb-section-main">
+        <div class="pdb-section-header pdb-section-header-main">
+            <span class="pdb-section-icon">&#127793;</span>
+            <span class="pdb-section-title">Taxonomie</span>
+            <span class="pdb-section-badge pdb-badge-required">Pflicht</span>
+        </div>
+        <div class="pdb-section-body" style="display:block">
+            <div class="pdb-field-row">
+                <div class="pdb-field pdb-field-third">
+                    <label for="f-genus">Gattung <span class="pdb-required">*</span></label>
+                    <input type="text" id="f-genus" name="genus" required autocomplete="off"
+                           placeholder="z.B. Rosa" oninput="pdbUpdatePreview(); pdbAutocompleteGenus(this);">
+                    <div id="ac-genus" class="pdb-autocomplete" style="display:none"></div>
+                </div>
+                <div class="pdb-field pdb-field-third">
+                    <label for="f-species">Art</label>
+                    <input type="text" id="f-species" name="species" autocomplete="off"
+                           placeholder="z.B. damascena" oninput="pdbUpdatePreview();">
+                </div>
+                <div class="pdb-field pdb-field-third">
+                    <label for="f-cultivar">Sorte / Kultivar</label>
+                    <input type="text" id="f-cultivar" name="cultivar" autocomplete="off"
+                           placeholder="z.B. König" oninput="pdbUpdatePreview();">
+                </div>
+            </div>
+            <div class="pdb-field-row">
+                <div class="pdb-field pdb-field-third">
+                    <label for="f-subspecies">Unterart</label>
+                    <input type="text" id="f-subspecies" name="subspecies" autocomplete="off"
+                           placeholder="z.B. vulgaris" oninput="pdbUpdatePreview();">
+                </div>
+                <div class="pdb-field pdb-field-third">
+                    <label for="f-ecotype">Ökotyp</label>
+                    <input type="text" id="f-ecotype" name="ecotype" autocomplete="off"
+                           placeholder="z.B. Alpenpflanze" oninput="pdbUpdatePreview();">
+                </div>
+                <div class="pdb-field pdb-field-third">
+                    {# spacer #}
+                </div>
+            </div>
+
+            {# Live preview #}
+            <div class="pdb-preview-box">
+                <div class="pdb-preview-row">
+                    <span class="pdb-preview-label">Botanischer Name:</span>
+                    <span id="pdb-preview-botanical" class="pdb-preview-value pdb-botanical-name">—</span>
+                </div>
+                <div class="pdb-preview-row">
+                    <span class="pdb-preview-label">Webname:</span>
+                    <span id="pdb-preview-webname" class="pdb-preview-value">—</span>
+                </div>
+                <div class="pdb-preview-row">
+                    <span class="pdb-preview-label">Matchcode:</span>
+                    <span id="pdb-preview-matchcode" class="pdb-preview-value">—</span>
+                </div>
+                <div id="pdb-duplicate-status" class="pdb-duplicate-ok">&#10003; Kein Duplikat</div>
+            </div>
+
+            <div class="pdb-field">
+                <label for="f-notes">Notizen</label>
+                <textarea id="f-notes" name="notes" rows="2" placeholder="Allgemeine Notizen zur Pflanze..."></textarea>
+            </div>
+        </div>
+    </div>
+
+    {# ============================================================ #}
+    {# SECTION: TEXTE (öffentlich)                                  #}
+    {# ============================================================ #}
+    <div class="pdb-section" data-section="texts">
+        <div class="pdb-section-header" onclick="pdbToggleSection(this)">
+            <span class="pdb-section-arrow">&#9654;</span>
+            <span class="pdb-section-title">Texte</span>
+            <span class="pdb-section-info">Beschreibung, Pflanzhinweise, Meta</span>
+            <span class="pdb-section-count">4 Felder</span>
+            <span class="pdb-section-dot" id="dot-texts"></span>
+        </div>
+        <div class="pdb-section-body">
+            <div class="pdb-field">
+                <label for="f-description_short">Kurzbeschreibung <span class="pdb-badge-public">öffentlich</span></label>
+                <textarea id="f-description_short" name="description_short" rows="2"
+                    placeholder="Kurze botanische Beschreibung (z.B. für Webseiten, Warenkorb)...">{{ data.description_short ?? '' }}</textarea>
+            </div>
+            <div class="pdb-field">
+                <label for="f-description_long">Langbeschreibung <span class="pdb-badge-public">öffentlich</span></label>
+                <textarea id="f-description_long" name="description_long" rows="5"
+                    placeholder="Ausführliche botanische Beschreibung...">{{ data.description_long ?? '' }}</textarea>
+            </div>
+            <div class="pdb-field">
+                <label for="f-care_instructions">Pflanzhinweise <span class="pdb-badge-public">öffentlich</span></label>
+                <textarea id="f-care_instructions" name="care_instructions" rows="3"
+                    placeholder="Standort, Pflege, Schnitt, Winterschutz...">{{ data.care_instructions ?? '' }}</textarea>
+            </div>
+            <div class="pdb-field">
+                <label for="f-meta_text">Metatext <span class="pdb-badge-public">öffentlich</span></label>
+                <textarea id="f-meta_text" name="meta_text" rows="2"
+                    placeholder="SEO-Beschreibung für Suchmaschinen und Webseiten-Meta-Tags...">{{ data.meta_text ?? '' }}</textarea>
+            </div>
+        </div>
+    </div>
+
+    {# ============================================================ #}
+    {# SECTION 2: NAMEN                                             #}
+    {# ============================================================ #}
+    <div class="pdb-section" data-section="names">
+        <div class="pdb-section-header" onclick="pdbToggleSection(this)">
+            <span class="pdb-section-arrow">&#9654;</span>
+            <span class="pdb-section-title">Namen</span>
+            <span class="pdb-section-info">DE, EN, FR, IT, Handelsnamen</span>
+            <span class="pdb-section-count">7 Felder</span>
+            <span class="pdb-section-dot" id="dot-names"></span>
+        </div>
+        <div class="pdb-section-body">
+            <div class="pdb-field-row">
+                <div class="pdb-field pdb-field-half">
+                    <label for="f-name_de">Deutscher Name</label>
+                    <input type="text" id="f-name_de" data-key="names.name_de" placeholder="z.B. Damaszener-Rose">
+                </div>
+                <div class="pdb-field pdb-field-half">
+                    <label for="f-name_en">English Name</label>
+                    <input type="text" id="f-name_en" data-key="names.name_en" placeholder="e.g. Damask rose">
+                </div>
+            </div>
+            <div class="pdb-field-row">
+                <div class="pdb-field pdb-field-half">
+                    <label for="f-name_fr">Nom français</label>
+                    <input type="text" id="f-name_fr" data-key="names.name_fr" placeholder="p.ex. Rose de Damas">
+                </div>
+                <div class="pdb-field pdb-field-half">
+                    <label for="f-name_it">Nome italiano</label>
+                    <input type="text" id="f-name_it" data-key="names.name_it" placeholder="es. Rosa di Damasco">
+                </div>
+            </div>
+            <div class="pdb-field-row">
+                <div class="pdb-field pdb-field-third">
+                    <label for="f-registration_name">Registrierungsname</label>
+                    <input type="text" id="f-registration_name" data-key="names.registration_name">
+                </div>
+                <div class="pdb-field pdb-field-third">
+                    <label for="f-exhibition_name">Ausstellungsname</label>
+                    <input type="text" id="f-exhibition_name" data-key="names.exhibition_name">
+                </div>
+                <div class="pdb-field pdb-field-third">
+                    <label for="f-trade_name">Handelsname</label>
+                    <input type="text" id="f-trade_name" data-key="names.trade_name">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {# ============================================================ #}
+    {# SECTION 3: KATEGORIEN                                        #}
+    {# ============================================================ #}
+    <div class="pdb-section" data-section="categories">
+        <div class="pdb-section-header" onclick="pdbToggleSection(this)">
+            <span class="pdb-section-arrow">&#9654;</span>
+            <span class="pdb-section-title">Kategorien</span>
+            <span class="pdb-section-info">Mehrfachzuweisung möglich</span>
+            <span class="pdb-section-count">mehrfach</span>
+            <span class="pdb-section-dot" id="dot-categories"></span>
+        </div>
+        <div class="pdb-section-body">
+            <div id="pdb-categories-list">
+                <div class="pdb-multi-row" data-index="0">
+                    <select data-key="categories.0.category_path" class="pdb-category-select">
+                        <option value="">— Kategorie wählen —</option>
+                    </select>
+                    <button type="button" class="pdb-btn-remove" onclick="pdbRemoveRow(this)" title="Entfernen">&#10005;</button>
+                </div>
+            </div>
+            <button type="button" class="pdb-btn-add" onclick="pdbAddCategory()">＋ Kategorie hinzufügen</button>
+        </div>
+    </div>
+
+    {# ============================================================ #}
+    {# SECTION 4: STANDORT                                          #}
+    {# ============================================================ #}
+    <div class="pdb-section" data-section="site">
+        <div class="pdb-section-header" onclick="pdbToggleSection(this)">
+            <span class="pdb-section-arrow">&#9654;</span>
+            <span class="pdb-section-title">Standort</span>
+            <span class="pdb-section-info">Winterhärte, Licht, Boden</span>
+            <span class="pdb-section-count">9 Felder</span>
+            <span class="pdb-section-dot" id="dot-site"></span>
+        </div>
+        <div class="pdb-section-body">
+            <div class="pdb-field-row">
+                <div class="pdb-field pdb-field-third">
+                    <label for="f-hardiness_zone">Winterhärtezone</label>
+                    <select id="f-hardiness_zone" data-key="site.hardiness_zone">
+						<option value="">—</option>
+						<option value="Zone 1 (unter -45.6 °C)"  data-temp="-45.6">Zone 1 (unter -45.6 °C)</option>
+						<option value="Zone 2a (-45.5 °C)" data-temp="-45.5">Zone 2a (-45.5 °C)</option>
+						<option value="Zone 2b (-42.7 °C)" data-temp="-42.7">Zone 2b (-42.7 °C)</option>
+						<option value="Zone 3a (-39.9 °C)" data-temp="-39.9">Zone 3a (-39.9 °C)</option>
+						<option value="Zone 3b (-37.2 °C)" data-temp="-37.2">Zone 3b (-37.2 °C)</option>
+						<option value="Zone 4a (-34.4 °C)" data-temp="-34.4">Zone 4a (-34.4 °C)</option>
+						<option value="Zone 4b (-31.6 °C)" data-temp="-31.6">Zone 4b (-31.6 °C)</option>
+						<option value="Zone 5a (-28.8 °C)" data-temp="-28.8">Zone 5a (-28.8 °C)</option>
+						<option value="Zone 5b (-26.1 °C)" data-temp="-26.1">Zone 5b (-26.1 °C)</option>
+						<option value="Zone 6a (-23.3 °C)" data-temp="-23.3">Zone 6a (-23.3 °C)</option>
+						<option value="Zone 6b (-20.4 °C)" data-temp="-20.4">Zone 6b (-20.4 °C)</option>
+						<option value="Zone 7a (-17.7 °C)" data-temp="-17.7">Zone 7a (-17.7 °C)</option>
+						<option value="Zone 7b (-14.9 °C)" data-temp="-14.9">Zone 7b (-14.9 °C)</option>
+						<option value="Zone 8a (-12.2 °C)" data-temp="-12.2">Zone 8a (-12.2 °C)</option>
+						<option value="Zone 8b (-9.4 °C)"  data-temp="-9.4">Zone 8b (-9.4 °C)</option>
+						<option value="Zone 9a (-6.6 °C)"  data-temp="-6.6">Zone 9a (-6.6 °C)</option>
+						<option value="Zone 9b (-3.8 °C)"  data-temp="-3.8">Zone 9b (-3.8 °C)</option>
+						<option value="Zone 10a (-1.1 °C)" data-temp="-1.1">Zone 10a (-1.1 °C)</option>
+						<option value="Zone 10b (+1.7 °C)" data-temp="+1.7">Zone 10b (+1.7 °C)</option>
+						<option value="Zone 11 (über +4.5 °C)" data-temp="+4.5">Zone 11 (über +4.5 °C)</option>
+					</select>
+                </div>
+                <div class="pdb-field pdb-field-third">
+                    <label for="f-hardiness_temp_min">Min. Temp. °C</label>
+                    <input type="number" step="0.1" id="f-hardiness_temp_min" data-key="site.hardiness_temp_min" placeholder="z.B. -20">
+                </div>
+                <div class="pdb-field pdb-field-third">
+                    <label for="f-hardiness_temp_max">Max. Temp. °C</label>
+                    <input type="number" step="0.1" id="f-hardiness_temp_max" data-key="site.hardiness_temp_max" placeholder="z.B. 40">
+                </div>
+            </div>
+            <div class="pdb-field-row">
+                <div class="pdb-field pdb-field-third">
+                    <label>Lichtbedarf</label>
+                    <div class="pdb-multiselect" id="f-light_requirement" data-key="site.light_requirement">
+                        <div class="pdb-multiselect-trigger" onclick="pdbToggleMultiselect(this)">
+                            <span class="pdb-multiselect-label">—</span>
+                            <span class="pdb-multiselect-arrow">&#9654;</span>
+                        </div>
+                        <div class="pdb-multiselect-dropdown" style="display:none">
+                            <label class="pdb-multiselect-option"><input type="checkbox" value="vollsonnig"> vollsonnig</label>
+                            <label class="pdb-multiselect-option"><input type="checkbox" value="sonnig"> sonnig</label>
+                            <label class="pdb-multiselect-option"><input type="checkbox" value="halbschattig"> halbschattig</label>
+                            <label class="pdb-multiselect-option"><input type="checkbox" value="schattig"> schattig</label>
+                            <label class="pdb-multiselect-option"><input type="checkbox" value="absonnig"> absonnig</label>
+                        </div>
+                    </div>
+                </div>
+                <div class="pdb-field pdb-field-third">
+                    <label>Feuchtigkeit</label>
+                    <div class="pdb-multiselect" id="f-moisture_requirement" data-key="site.moisture_requirement">
+                        <div class="pdb-multiselect-trigger" onclick="pdbToggleMultiselect(this)">
+                            <span class="pdb-multiselect-label">—</span>
+                            <span class="pdb-multiselect-arrow">&#9654;</span>
+                        </div>
+                        <div class="pdb-multiselect-dropdown" style="display:none">
+                            <label class="pdb-multiselect-option"><input type="checkbox" value="sehr trocken"> sehr trocken</label>
+                            <label class="pdb-multiselect-option"><input type="checkbox" value="trocken"> trocken</label>
+                            <label class="pdb-multiselect-option"><input type="checkbox" value="frisch"> frisch</label>
+                            <label class="pdb-multiselect-option"><input type="checkbox" value="feucht"> feucht</label>
+                            <label class="pdb-multiselect-option"><input type="checkbox" value="nass"> nass</label>
+                            <label class="pdb-multiselect-option"><input type="checkbox" value="sumpfig"> sumpfig</label>
+                        </div>
+                    </div>
+                </div>
+                <div class="pdb-field pdb-field-third">
+                    <label>Nährstoffbedarf</label>
+                    <div class="pdb-multiselect" id="f-nutrient_demand" data-key="site.nutrient_demand">
+                        <div class="pdb-multiselect-trigger" onclick="pdbToggleMultiselect(this)">
+                            <span class="pdb-multiselect-label">—</span>
+                            <span class="pdb-multiselect-arrow">&#9654;</span>
+                        </div>
+                        <div class="pdb-multiselect-dropdown" style="display:none">
+                            <label class="pdb-multiselect-option"><input type="checkbox" value="sehr gering"> sehr gering</label>
+                            <label class="pdb-multiselect-option"><input type="checkbox" value="gering"> gering</label>
+                            <label class="pdb-multiselect-option"><input type="checkbox" value="mittel"> mittel</label>
+                            <label class="pdb-multiselect-option"><input type="checkbox" value="hoch"> hoch</label>
+                            <label class="pdb-multiselect-option"><input type="checkbox" value="sehr hoch"> sehr hoch</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="pdb-field-row">
+                <div class="pdb-field pdb-field-third">
+                    <label>Bodenart</label>
+                    <div class="pdb-multiselect" id="f-soil_type" data-key="site.soil_type">
+                        <div class="pdb-multiselect-trigger" onclick="pdbToggleMultiselect(this)">
+                            <span class="pdb-multiselect-label">—</span>
+                            <span class="pdb-multiselect-arrow">&#9654;</span>
+                        </div>
+                        <div class="pdb-multiselect-dropdown" style="display:none">
+                            <label class="pdb-multiselect-option"><input type="checkbox" value="steinig"> steinig</label>
+                            <label class="pdb-multiselect-option"><input type="checkbox" value="sandig"> sandig</label>
+                            <label class="pdb-multiselect-option"><input type="checkbox" value="schluffig"> schluffig</label>
+                            <label class="pdb-multiselect-option"><input type="checkbox" value="tonig"> tonig</label>
+                            <label class="pdb-multiselect-option"><input type="checkbox" value="lehmig"> lehmig</label>
+                            <label class="pdb-multiselect-option"><input type="checkbox" value="moorig"> moorig</label>
+                            <label class="pdb-multiselect-option"><input type="checkbox" value="humos"> humos</label>
+                        </div>
+                    </div>
+                </div>
+                <div class="pdb-field pdb-field-third">
+                    <label for="f-soil_ph_min">pH-Minimum</label>
+                    <input type="number" step="0.1" id="f-soil_ph_min" data-key="site.soil_ph_min" placeholder="z.B. 5.5">
+                </div>
+                <div class="pdb-field pdb-field-third">
+                    <label for="f-soil_ph_max">pH-Maximum</label>
+                    <input type="number" step="0.1" id="f-soil_ph_max" data-key="site.soil_ph_max" placeholder="z.B. 7.5">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {# ============================================================ #}
+    {# SECTION 5: BLÜTE                                             #}
+    {# ============================================================ #}
+    <div class="pdb-section" data-section="flower">
+        <div class="pdb-section-header" onclick="pdbToggleSection(this)">
+            <span class="pdb-section-arrow">&#9654;</span>
+            <span class="pdb-section-title">Blüte</span>
+            <span class="pdb-section-info">Farbe, Duft, Blühzeit</span>
+            <span class="pdb-section-count">21 Felder</span>
+            <span class="pdb-section-dot" id="dot-flower"></span>
+        </div>
+        <div class="pdb-section-body">
+            <div class="pdb-field-row">
+                <div class="pdb-field pdb-field-third">
+                    <label>Blütenfarbe</label>
+                    <div class="pdb-multiselect" id="f-flower_color" data-key="flower.color">
+                        <div class="pdb-multiselect-trigger" onclick="pdbToggleMultiselect(this)">
+                            <span class="pdb-multiselect-label">—</span>
+                            <span class="pdb-multiselect-arrow">&#9654;</span>
+                        </div>
+                        <div class="pdb-multiselect-dropdown" style="display:none">
+                            <label class="pdb-multiselect-option"><input type="checkbox" value="weiss"> weiss</label>
+                            <label class="pdb-multiselect-option"><input type="checkbox" value="cremeweiss"> cremeweiss</label>
+                            <label class="pdb-multiselect-option"><input type="checkbox" value="hellgelb"> hellgelb</label>
+                            <label class="pdb-multiselect-option"><input type="checkbox" value="gelb"> gelb</label>
+                            <label class="pdb-multiselect-option"><input type="checkbox" value="goldgelb"> goldgelb</label>
+                            <label class="pdb-multiselect-option"><input type="checkbox" value="orange"> orange</label>
+                            <label class="pdb-multiselect-option"><input type="checkbox" value="apricot"> apricot</label>
+                            <label class="pdb-multiselect-option"><input type="checkbox" value="hellrot"> hellrot</label>
+                            <label class="pdb-multiselect-option"><input type="checkbox" value="rot"> rot</label>
+                            <label class="pdb-multiselect-option"><input type="checkbox" value="dunkelrot"> dunkelrot</label>
+                            <label class="pdb-multiselect-option"><input type="checkbox" value="hellrosa"> hellrosa</label>
+                            <label class="pdb-multiselect-option"><input type="checkbox" value="rosa"> rosa</label>
+                            <label class="pdb-multiselect-option"><input type="checkbox" value="pink"> pink</label>
+                            <label class="pdb-multiselect-option"><input type="checkbox" value="dunkelrosa"> dunkelrosa</label>
+                            <label class="pdb-multiselect-option"><input type="checkbox" value="hellviolett"> hellviolett</label>
+                            <label class="pdb-multiselect-option"><input type="checkbox" value="flieder"> flieder</label>
+                            <label class="pdb-multiselect-option"><input type="checkbox" value="violett"> violett</label>
+                            <label class="pdb-multiselect-option"><input type="checkbox" value="purpur"> purpur</label>
+                            <label class="pdb-multiselect-option"><input type="checkbox" value="dunkelpurpur"> dunkelpurpur</label>
+                            <label class="pdb-multiselect-option"><input type="checkbox" value="dunkelblau"> dunkelblau</label>
+                            <label class="pdb-multiselect-option"><input type="checkbox" value="blau"> blau</label>
+                            <label class="pdb-multiselect-option"><input type="checkbox" value="himmelblau"> himmelblau</label>
+                            <label class="pdb-multiselect-option"><input type="checkbox" value="hellblau"> hellblau</label>
+                            <label class="pdb-multiselect-option"><input type="checkbox" value="türkis"> türkis</label>
+                            <label class="pdb-multiselect-option"><input type="checkbox" value="dunkelgrün"> dunkelgrün</label>
+                            <label class="pdb-multiselect-option"><input type="checkbox" value="olivgrün"> olivgrün</label>
+                            <label class="pdb-multiselect-option"><input type="checkbox" value="grün"> grün</label>
+                            <label class="pdb-multiselect-option"><input type="checkbox" value="hellgrün"> hellgrün</label>
+                            <label class="pdb-multiselect-option"><input type="checkbox" value="braun"> braun</label>
+                        </div>
+                    </div>
+                </div>
+                <div class="pdb-field pdb-field-third">
+                    <label for="f-fragrance">Duft</label>
+                    <select id="f-fragrance" data-key="flower.fragrance">
+                        <option value="">—</option>
+                        <option>sehr stark duftend</option>
+                        <option>stark duftend</option>
+						<option>duftend</option>
+                        <option>zart duftend</option>
+						<option>nicht duftend</option>
+                    </select>
+                </div>
+                <div class="pdb-field pdb-field-third">
+                    <label for="f-blooming_cycle">Blühzyklus</label>
+                    <select id="f-blooming_cycle" data-key="flower.blooming_cycle">
+                        <option value="">—</option>
+                        <option>einmalblühend</option>
+                        <option>nachblühend</option>
+                        <option>öfterblühend</option>
+                        <option>dauerblühend</option>
+                    </select>
+                </div>
+            </div>
+            <div class="pdb-field-row">
+                <div class="pdb-field pdb-field-third">
+                    <label for="f-flower_size">Blütengrösse</label>
+                    <input type="text" id="f-flower_size" data-key="flower.size" placeholder="z.B. 5-8cm">
+                </div>
+                <div class="pdb-field pdb-field-third">
+                    <label for="f-fullness">Füllung</label>
+                    <select id="f-fullness" data-key="flower.fullness">
+                        <option value="">—</option>
+                        <option>einfach</option><option>halbgefüllt</option><option>gefüllt</option><option>stark gefüllt</option>
+                    </select>
+                </div>
+                <div class="pdb-field pdb-field-third">
+                    <label for="f-flower_form">Blütenform</label>
+                    <input type="text" id="f-flower_form" data-key="flower.form" placeholder="z.B. schalenförmig">
+                </div>
+            </div>
+            <div class="pdb-field-row">
+                <div class="pdb-field pdb-field-half">
+                    <label for="f-vase_life">Vasenleben</label>
+                    <input type="text" id="f-vase_life" data-key="flower.vase_life" placeholder="z.B. 7-10 Tage">
+                </div>
+                <div class="pdb-field pdb-field-half">
+                    <label for="f-flower_notes">Notizen Blüte</label>
+                    <input type="text" id="f-flower_notes" data-key="flower.notes">
+                </div>
+            </div>
+            <div class="pdb-field">
+                <label>Blühmonate</label>
+                <div class="pdb-multiselect" id="f-bloom_months" data-key="flower.bloom_months">
+                    <div class="pdb-multiselect-trigger" onclick="pdbToggleMultiselect(this)">
+                        <span class="pdb-multiselect-label">—</span>
+                        <span class="pdb-multiselect-arrow">&#9654;</span>
+                    </div>
+                    <div class="pdb-multiselect-dropdown" style="display:none">
+                        <label class="pdb-multiselect-option"><input type="checkbox" value="Januar"> Januar</label>
+                        <label class="pdb-multiselect-option"><input type="checkbox" value="Februar"> Februar</label>
+                        <label class="pdb-multiselect-option"><input type="checkbox" value="Maerz"> März</label>
+                        <label class="pdb-multiselect-option"><input type="checkbox" value="April"> April</label>
+                        <label class="pdb-multiselect-option"><input type="checkbox" value="Mai"> Mai</label>
+                        <label class="pdb-multiselect-option"><input type="checkbox" value="Juni"> Juni</label>
+                        <label class="pdb-multiselect-option"><input type="checkbox" value="Juli"> Juli</label>
+                        <label class="pdb-multiselect-option"><input type="checkbox" value="August"> August</label>
+                        <label class="pdb-multiselect-option"><input type="checkbox" value="September"> September</label>
+                        <label class="pdb-multiselect-option"><input type="checkbox" value="Oktober"> Oktober</label>
+                        <label class="pdb-multiselect-option"><input type="checkbox" value="November"> November</label>
+                        <label class="pdb-multiselect-option"><input type="checkbox" value="Dezember"> Dezember</label>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {# ============================================================ #}
+    {# SECTION 6: WUCHS                                             #}
+    {# ============================================================ #}
+    <div class="pdb-section" data-section="growth">
+        <div class="pdb-section-header" onclick="pdbToggleSection(this)">
+            <span class="pdb-section-arrow">&#9654;</span>
+            <span class="pdb-section-title">Wuchs</span>
+            <span class="pdb-section-info">Zyklus, Höhe, Breite, Form</span>
+            <span class="pdb-section-count">7 Felder</span>
+            <span class="pdb-section-dot" id="dot-growth"></span>
+        </div>
+        <div class="pdb-section-body">
+            <div class="pdb-field-row">
+                <div class="pdb-field pdb-field-third">
+                    <label for="f-growth_cycle">Lebenszyklus</label>
+                    <select id="f-growth_cycle" data-key="growth.growth_cycle">
+                        <option value="">—</option>
+                        <option>einjährig</option><option>zweijährig</option>
+                        <option>mehrjährig</option>
+                        <option>ausdauernd</option>
+                    </select>
+                </div>
+                <div class="pdb-field pdb-field-third">
+                    <label for="f-height_cm">Höhe (cm)</label>
+                    <input type="number" id="f-height_cm" data-key="growth.height_cm" placeholder="z.B. 120">
+                </div>
+                <div class="pdb-field pdb-field-third">
+                    <label for="f-width_cm">Breite (cm)</label>
+                    <input type="number" id="f-width_cm" data-key="growth.width_cm" placeholder="z.B. 80">
+                </div>
+            </div>
+            <div class="pdb-field-row">
+                <div class="pdb-field pdb-field-third">
+                    <label>Wuchsform (primär)</label>
+                    <div class="pdb-multiselect" id="f-growth_form_primary" data-key="growth.growth_form_primary">
+                        <div class="pdb-multiselect-trigger" onclick="pdbToggleMultiselect(this)">
+                            <span class="pdb-multiselect-label">—</span>
+                            <span class="pdb-multiselect-arrow">&#9654;</span>
+                        </div>
+                        <div class="pdb-multiselect-dropdown" style="display:none">
+                            <label class="pdb-multiselect-option"><input type="checkbox" value="aufrecht"> aufrecht</label>
+                            <label class="pdb-multiselect-option"><input type="checkbox" value="bogig"> bogig</label>
+                            <label class="pdb-multiselect-option"><input type="checkbox" value="buschig"> buschig</label>
+                            <label class="pdb-multiselect-option"><input type="checkbox" value="horstig"> horstig</label>
+                            <label class="pdb-multiselect-option"><input type="checkbox" value="kletternd"> kletternd</label>
+                            <label class="pdb-multiselect-option"><input type="checkbox" value="kriechend"> kriechend</label>
+                            <label class="pdb-multiselect-option"><input type="checkbox" value="auslaeuferbildend"> ausläuferbildend</label>
+                            <label class="pdb-multiselect-option"><input type="checkbox" value="saeulenfoermig"> säulenförmig</label>
+                            <label class="pdb-multiselect-option"><input type="checkbox" value="kugelfoermig"> kugelförmig</label>
+                            <label class="pdb-multiselect-option"><input type="checkbox" value="haengend"> hängend</label>
+                            <label class="pdb-multiselect-option"><input type="checkbox" value="spreizend"> spreizend</label>
+                            <label class="pdb-multiselect-option"><input type="checkbox" value="polsterfoermig"> polsterförmig</label>
+                            <label class="pdb-multiselect-option"><input type="checkbox" value="rosettenfoermig"> rosettenförmig</label>
+                        </div>
+                    </div>
+                </div>
+                <div class="pdb-field pdb-field-third">
+                    <label>Wuchsform (sekundär)</label>
+                    <div class="pdb-multiselect" id="f-growth_form_secondary" data-key="growth.growth_form_secondary">
+                        <div class="pdb-multiselect-trigger" onclick="pdbToggleMultiselect(this)">
+                            <span class="pdb-multiselect-label">—</span>
+                            <span class="pdb-multiselect-arrow">&#9654;</span>
+                        </div>
+                        <div class="pdb-multiselect-dropdown" style="display:none">
+                            <label class="pdb-multiselect-option"><input type="checkbox" value="kompakt"> kompakt</label>
+                            <label class="pdb-multiselect-option"><input type="checkbox" value="locker"> locker</label>
+                            <label class="pdb-multiselect-option"><input type="checkbox" value="dicht"> dicht</label>
+                            <label class="pdb-multiselect-option"><input type="checkbox" value="weitausladend"> weitausladend</label>
+                            <label class="pdb-multiselect-option"><input type="checkbox" value="uebershaengend"> überhängend</label>
+                            <label class="pdb-multiselect-option"><input type="checkbox" value="sparrig"> sparrig</label>
+                        </div>
+                    </div>
+                </div>
+                <div class="pdb-field pdb-field-third">
+                    <label for="f-growth_vigor">Wüchsigkeit</label>
+                    <select id="f-growth_vigor" data-key="growth.growth_vigor">
+                        <option value="">—</option>
+                        <option>schwach</option><option>mittel</option><option>stark</option>
+                    </select>
+                </div>
+            </div>
+            <div class="pdb-field">
+                <label for="f-growth_notes">Notizen Wuchs</label>
+                <input type="text" id="f-growth_notes" data-key="growth.notes">
+            </div>
+        </div>
+    </div>
+
+    {# ============================================================ #}
+    {# SECTION 7: HERKUNFT & ZÜCHTUNG                               #}
+    {# ============================================================ #}
+    <div class="pdb-section" data-section="origin">
+        <div class="pdb-section-header" onclick="pdbToggleSection(this)">
+            <span class="pdb-section-arrow">&#9654;</span>
+            <span class="pdb-section-title">Herkunft &amp; Züchtung</span>
+            <span class="pdb-section-info">Züchter, Hybrid, Schutz</span>
+            <span class="pdb-section-count">15 Felder</span>
+            <span class="pdb-section-dot" id="dot-origin"></span>
+        </div>
+        <div class="pdb-section-body">
+            <div class="pdb-field-row">
+                <div class="pdb-field pdb-field-third">
+                    <label for="f-breeder_name">Züchter</label>
+                    <input type="text" id="f-breeder_name" data-key="origin.breeder_name" placeholder="z.B. David Austin">
+                </div>
+                <div class="pdb-field pdb-field-third">
+                    <label for="f-breeder_company">Firma</label>
+                    <input type="text" id="f-breeder_company" data-key="origin.breeder_company">
+                </div>
+                <div class="pdb-field pdb-field-third">
+                    <label for="f-breeder_country">Land</label>
+                    <input type="text" id="f-breeder_country" data-key="origin.breeder_country" placeholder="z.B. GB">
+                </div>
+            </div>
+            <div class="pdb-field-row">
+                <div class="pdb-field pdb-field-third">
+                    <label for="f-breeder_year">Züchtungsjahr</label>
+                    <input type="number" id="f-breeder_year" data-key="origin.breeder_year" placeholder="z.B. 1985">
+                </div>
+                <div class="pdb-field pdb-field-third">
+                    <label for="f-introducer_name">Einführer</label>
+                    <input type="text" id="f-introducer_name" data-key="origin.introducer_name">
+                </div>
+                <div class="pdb-field pdb-field-third">
+                    <label for="f-introducer_country">Einführerland</label>
+                    <input type="text" id="f-introducer_country" data-key="origin.introducer_country">
+                </div>
+            </div>
+            <div class="pdb-field-row">
+                <div class="pdb-field pdb-field-third">
+                    <label for="f-introducer_year">Einführungsjahr</label>
+                    <input type="number" id="f-introducer_year" data-key="origin.introducer_year">
+                </div>
+                <div class="pdb-field pdb-field-third">
+                    <label for="f-hybrid_status">Hybrid-Status</label>
+                    <select id="f-hybrid_status" data-key="origin.hybrid_status">
+                        <option value="">—</option>
+                        <option>species</option><option>hybrid</option><option>cultivar</option>
+                    </select>
+                </div>
+                <div class="pdb-field pdb-field-third">
+                    <label for="f-ploidy">Ploidie</label>
+                    <select id="f-ploidy" data-key="origin.ploidy">
+                        <option value="">—</option>
+                        <option>diploid</option><option>triploid</option><option>tetraploid</option>
+                    </select>
+                </div>
+            </div>
+            <div class="pdb-field-row">
+                <div class="pdb-field pdb-field-half">
+                    <label for="f-hybrid_parents">Elternpflanzen</label>
+                    <input type="text" id="f-hybrid_parents" data-key="origin.hybrid_parents" placeholder="z.B. Rosa damascena × Rosa gallica">
+                </div>
+                <div class="pdb-field pdb-field-half">
+                    <label for="f-breeder_reference">Züchterreferenz</label>
+                    <input type="text" id="f-breeder_reference" data-key="origin.breeder_reference">
+                </div>
+            </div>
+            <div class="pdb-field-row">
+                <div class="pdb-field pdb-field-half">
+                    <label for="f-origin_region">Herkunftsregion</label>
+                    <input type="text" id="f-origin_region" data-key="origin.origin_region" placeholder="z.B. Mittelmeerraum">
+                </div>
+                <div class="pdb-field pdb-field-half">
+                    <label for="f-breeding_method">Züchtungsmethode</label>
+                    <input type="text" id="f-breeding_method" data-key="origin.breeding_method" placeholder="z.B. Kreuzung, Selektion">
+                </div>
+            </div>
+            <div class="pdb-field-row">
+                <div class="pdb-field pdb-field-half">
+                    <label><input type="checkbox" id="f-variety_protection" data-key="origin.variety_protection"> Sortenschutz</label>
+                </div>
+                <div class="pdb-field pdb-field-half">
+                    <label><input type="checkbox" id="f-trademark_protection" data-key="origin.trademark_protection"> Markenschutz</label>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {# ============================================================ #}
+    {# SECTION 8: FRUCHT                                            #}
+    {# ============================================================ #}
+    <div class="pdb-section" data-section="fruit">
+        <div class="pdb-section-header" onclick="pdbToggleSection(this)">
+            <span class="pdb-section-arrow">&#9654;</span>
+            <span class="pdb-section-title">Frucht</span>
+            <span class="pdb-section-info">Farbe, Geschmack, Ernte</span>
+            <span class="pdb-section-count">20 Felder</span>
+            <span class="pdb-section-dot" id="dot-fruit"></span>
+        </div>
+        <div class="pdb-section-body">
+            <div class="pdb-field-row">
+                <div class="pdb-field pdb-field-third">
+                    <label for="f-fruit_color">Fruchtfarbe</label>
+                    <input type="text" id="f-fruit_color" data-key="fruit.color">
+                </div>
+                <div class="pdb-field pdb-field-third">
+                    <label for="f-fruit_size">Fruchtgrösse</label>
+                    <input type="text" id="f-fruit_size" data-key="fruit.size">
+                </div>
+                <div class="pdb-field pdb-field-third">
+                    <label for="f-fruit_taste">Geschmack</label>
+                    <input type="text" id="f-fruit_taste" data-key="fruit.taste" placeholder="z.B. süss-säuerlich">
+                </div>
+            </div>
+            <div class="pdb-field-row">
+                <div class="pdb-field pdb-field-third">
+                    <label for="f-juiciness">Saftigkeit</label>
+                    <select id="f-juiciness" data-key="fruit.juiciness">
+                        <option value="">—</option>
+                        <option>sehr saftig</option><option>saftig</option><option>mittelsaftig</option><option>fest</option>
+                    </select>
+                </div>
+                <div class="pdb-field pdb-field-third">
+                    <label for="f-fruit_texture">Textur</label>
+                    <input type="text" id="f-fruit_texture" data-key="fruit.texture">
+                </div>
+                <div class="pdb-field pdb-field-third">
+                    <label for="f-development_days_fruit">Entwicklungstage</label>
+                    <input type="number" id="f-development_days_fruit" data-key="fruit.development_days">
+                </div>
+            </div>
+            <div class="pdb-field">
+                <label>Erntemonate</label>
+                <div class="pdb-multiselect" id="f-fruit_harvest_months" data-key="fruit.harvest_months">
+                    <div class="pdb-multiselect-trigger" onclick="pdbToggleMultiselect(this)">
+                        <span class="pdb-multiselect-label">—</span>
+                        <span class="pdb-multiselect-arrow">&#9654;</span>
+                    </div>
+                    <div class="pdb-multiselect-dropdown" style="display:none">
+                        <label class="pdb-multiselect-option"><input type="checkbox" value="Januar"> Januar</label>
+                        <label class="pdb-multiselect-option"><input type="checkbox" value="Februar"> Februar</label>
+                        <label class="pdb-multiselect-option"><input type="checkbox" value="Maerz"> März</label>
+                        <label class="pdb-multiselect-option"><input type="checkbox" value="April"> April</label>
+                        <label class="pdb-multiselect-option"><input type="checkbox" value="Mai"> Mai</label>
+                        <label class="pdb-multiselect-option"><input type="checkbox" value="Juni"> Juni</label>
+                        <label class="pdb-multiselect-option"><input type="checkbox" value="Juli"> Juli</label>
+                        <label class="pdb-multiselect-option"><input type="checkbox" value="August"> August</label>
+                        <label class="pdb-multiselect-option"><input type="checkbox" value="September"> September</label>
+                        <label class="pdb-multiselect-option"><input type="checkbox" value="Oktober"> Oktober</label>
+                        <label class="pdb-multiselect-option"><input type="checkbox" value="November"> November</label>
+                        <label class="pdb-multiselect-option"><input type="checkbox" value="Dezember"> Dezember</label>
+                    </div>
+                </div>
+            </div>
+            <div class="pdb-field">
+                <label for="f-fruit_notes">Notizen Frucht</label>
+                <input type="text" id="f-fruit_notes" data-key="fruit.notes">
+            </div>
+        </div>
+    </div>
+
+    {# ============================================================ #}
+    {# SECTION 9: BLATT                                             #}
+    {# ============================================================ #}
+    <div class="pdb-section" data-section="leaf">
+        <div class="pdb-section-header" onclick="pdbToggleSection(this)">
+            <span class="pdb-section-arrow">&#9654;</span>
+            <span class="pdb-section-title">Blatt</span>
+            <span class="pdb-section-info">Farbe, Form, Herbstfärbung</span>
+            <span class="pdb-section-count">7 Felder</span>
+            <span class="pdb-section-dot" id="dot-leaf"></span>
+        </div>
+        <div class="pdb-section-body">
+            <div class="pdb-field-row">
+                <div class="pdb-field pdb-field-third">
+                    <label for="f-leaf_color">Blattfarbe</label>
+                    <input type="text" id="f-leaf_color" data-key="leaf.color" placeholder="z.B. dunkelgrün">
+                </div>
+                <div class="pdb-field pdb-field-third">
+                    <label for="f-leaf_form">Blattform</label>
+                    <input type="text" id="f-leaf_form" data-key="leaf.form" placeholder="z.B. gefiedert">
+                </div>
+                <div class="pdb-field pdb-field-third">
+                    <label for="f-leaf_size">Blattgrösse</label>
+                    <input type="text" id="f-leaf_size" data-key="leaf.size">
+                </div>
+            </div>
+            <div class="pdb-field-row">
+                <div class="pdb-field pdb-field-third">
+                    <label for="f-leaf_aroma">Blattaroma</label>
+                    <input type="text" id="f-leaf_aroma" data-key="leaf.aroma">
+                </div>
+                <div class="pdb-field pdb-field-third">
+                    <label for="f-autumn_color">Herbstfarbe</label>
+                    <input type="text" id="f-autumn_color" data-key="leaf.autumn_color" placeholder="z.B. orange-rot">
+                </div>
+                <div class="pdb-field pdb-field-third pdb-checkboxes-inline">
+                    <label><input type="checkbox" data-key="leaf.has_autumn_color"> Herbstfärbung</label>
+                    <label><input type="checkbox" data-key="leaf.evergreen"> Immergrün</label>
+                </div>
+            </div>
+            <div class="pdb-field">
+                <label for="f-leaf_notes">Notizen Blatt</label>
+                <input type="text" id="f-leaf_notes" data-key="leaf.notes">
+            </div>
+        </div>
+    </div>
+
+    {# ============================================================ #}
+    {# SECTION 10: WURZEL                                           #}
+    {# ============================================================ #}
+    <div class="pdb-section" data-section="root">
+        <div class="pdb-section-header" onclick="pdbToggleSection(this)">
+            <span class="pdb-section-arrow">&#9654;</span>
+            <span class="pdb-section-title">Wurzel</span>
+            <span class="pdb-section-info">Tiefe, Form, Verankerung</span>
+            <span class="pdb-section-count">4 Felder</span>
+            <span class="pdb-section-dot" id="dot-root"></span>
+        </div>
+        <div class="pdb-section-body">
+            <div class="pdb-field-row">
+                <div class="pdb-field pdb-field-quarter">
+                    <label for="f-root_depth">Wurzeltiefe</label>
+                    <input type="text" id="f-root_depth" data-key="root.root_depth" placeholder="z.B. 30-50cm">
+                </div>
+                <div class="pdb-field pdb-field-quarter">
+                    <label for="f-root_form">Wurzelform</label>
+                    <input type="text" id="f-root_form" data-key="root.root_form" placeholder="z.B. Pfahlwurzel">
+                </div>
+                <div class="pdb-field pdb-field-quarter">
+                    <label for="f-anchorage">Verankerung</label>
+                    <input type="text" id="f-anchorage" data-key="root.anchorage">
+                </div>
+                <div class="pdb-field pdb-field-quarter">
+                    <label for="f-root_taste">Geschmack</label>
+                    <input type="text" id="f-root_taste" data-key="root.taste" placeholder="z.B. scharf">
+                </div>
+            </div>
+            <div class="pdb-field">
+                <label for="f-root_notes">Notizen Wurzel</label>
+                <input type="text" id="f-root_notes" data-key="root.notes">
+            </div>
+        </div>
+    </div>
+
+    {# ============================================================ #}
+    {# SECTION 11: VERWENDUNG                                       #}
+    {# ============================================================ #}
+    <div class="pdb-section" data-section="usage">
+        <div class="pdb-section-header" onclick="pdbToggleSection(this)">
+            <span class="pdb-section-arrow">&#9654;</span>
+            <span class="pdb-section-title">Verwendung</span>
+            <span class="pdb-section-info">Zweck, Pflanzenteile, Ernte</span>
+            <span class="pdb-section-count">18 Felder</span>
+            <span class="pdb-section-dot" id="dot-usage"></span>
+        </div>
+        <div class="pdb-section-body">
+            <div class="pdb-field-row">
+                <div class="pdb-field pdb-field-half">
+                    <label for="f-purpose">Verwendungszweck</label>
+                    <input type="text" id="f-purpose" data-key="usage.purpose" placeholder="z.B. Küche, Heilkraut, Zierpflanze">
+                </div>
+                <div class="pdb-field pdb-field-half">
+                    <label for="f-plant_parts">Pflanzenteile</label>
+                    <input type="text" id="f-plant_parts" data-key="usage.plant_parts" placeholder="z.B. Blätter, Blüten, Wurzel">
+                </div>
+            </div>
+            <div class="pdb-field-row">
+                <div class="pdb-field pdb-field-half">
+                    <label for="f-processing">Verarbeitung</label>
+                    <input type="text" id="f-processing" data-key="usage.processing" placeholder="z.B. trocknen, einfrieren">
+                </div>
+                <div class="pdb-field pdb-field-half">
+                    <label for="f-storage">Lagerung</label>
+                    <input type="text" id="f-storage" data-key="usage.storage">
+                </div>
+            </div>
+            <div class="pdb-field">
+                <label for="f-usage_notes">Notizen Verwendung</label>
+                <input type="text" id="f-usage_notes" data-key="usage.notes">
+            </div>
+            <div class="pdb-field">
+                <label>Erntemonate</label>
+                <div class="pdb-multiselect" id="f-usage_harvest_months" data-key="usage.harvest_months">
+                    <div class="pdb-multiselect-trigger" onclick="pdbToggleMultiselect(this)">
+                        <span class="pdb-multiselect-label">—</span>
+                        <span class="pdb-multiselect-arrow">&#9654;</span>
+                    </div>
+                    <div class="pdb-multiselect-dropdown" style="display:none">
+                        <label class="pdb-multiselect-option"><input type="checkbox" value="Januar"> Januar</label>
+                        <label class="pdb-multiselect-option"><input type="checkbox" value="Februar"> Februar</label>
+                        <label class="pdb-multiselect-option"><input type="checkbox" value="Maerz"> März</label>
+                        <label class="pdb-multiselect-option"><input type="checkbox" value="April"> April</label>
+                        <label class="pdb-multiselect-option"><input type="checkbox" value="Mai"> Mai</label>
+                        <label class="pdb-multiselect-option"><input type="checkbox" value="Juni"> Juni</label>
+                        <label class="pdb-multiselect-option"><input type="checkbox" value="Juli"> Juli</label>
+                        <label class="pdb-multiselect-option"><input type="checkbox" value="August"> August</label>
+                        <label class="pdb-multiselect-option"><input type="checkbox" value="September"> September</label>
+                        <label class="pdb-multiselect-option"><input type="checkbox" value="Oktober"> Oktober</label>
+                        <label class="pdb-multiselect-option"><input type="checkbox" value="November"> November</label>
+                        <label class="pdb-multiselect-option"><input type="checkbox" value="Dezember"> Dezember</label>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {# ============================================================ #}
+    {# SECTION 12: GÄRTNEREI & KULTUR                               #}
+    {# ============================================================ #}
+    <div class="pdb-section" data-section="nursery">
+        <div class="pdb-section-header" onclick="pdbToggleSection(this)">
+            <span class="pdb-section-arrow">&#9654;</span>
+            <span class="pdb-section-title">Gärtnerei &amp; Kultur</span>
+            <span class="pdb-section-info">Vermehrung, Keimung, Entwicklung</span>
+            <span class="pdb-section-count">10 Felder</span>
+            <span class="pdb-section-dot" id="dot-nursery"></span>
+        </div>
+        <div class="pdb-section-body">
+            <div class="pdb-field-row">
+                <div class="pdb-field pdb-field-third">
+                    <label for="f-propagation_method">Vermehrungsart</label>
+                    <input type="text" id="f-propagation_method" data-key="nursery.propagation_method" placeholder="z.B. Aussaat, Steckling">
+                </div>
+                <div class="pdb-field pdb-field-third">
+                    <label for="f-germination_days">Keimdauer (Tage)</label>
+                    <input type="number" id="f-germination_days" data-key="nursery.germination_days">
+                </div>
+                <div class="pdb-field pdb-field-third">
+                    <label for="f-germination_temp">Keimtemperatur</label>
+                    <input type="text" id="f-germination_temp" data-key="nursery.germination_temp" placeholder="z.B. 18-22°C">
+                </div>
+            </div>
+            <div class="pdb-field-row">
+                <div class="pdb-field pdb-field-third">
+                    <label for="f-germination_temp_min">Keimtemp. min (°C)</label>
+                    <input type="number" id="f-germination_temp_min" data-key="nursery.germination_temp_min_c" placeholder="z.B. 18">
+                </div>
+                <div class="pdb-field pdb-field-third">
+                    <label for="f-germination_temp_max">Keimtemp. max (°C)</label>
+                    <input type="number" id="f-germination_temp_max" data-key="nursery.germination_temp_max_c" placeholder="z.B. 22">
+                </div>
+                <div class="pdb-field pdb-field-third">
+                    <label for="f-germination_light">Keimlicht</label>
+                    <input type="text" id="f-germination_light" data-key="nursery.germination_light" placeholder="z.B. Lichtkeimer">
+                </div>
+            </div>
+            <div class="pdb-field-row">
+                <div class="pdb-field pdb-field-quarter">
+                    <label for="f-rooting_days">Bewurzelungstage</label>
+                    <input type="number" id="f-rooting_days" data-key="nursery.rooting_days">
+                </div>
+                <div class="pdb-field pdb-field-quarter">
+                    <label for="f-dev_to_yp">Tage bis Jungpflanze</label>
+                    <input type="number" id="f-dev_to_yp" data-key="nursery.development_days_to_yp">
+                </div>
+                <div class="pdb-field pdb-field-quarter">
+                    <label for="f-dev_yp_fp">Tage bis Fertigpflanze</label>
+                    <input type="number" id="f-dev_yp_fp" data-key="nursery.development_days_yp_to_fp">
+                </div>
+                <div class="pdb-field pdb-field-quarter">
+                    <label for="f-plants_per_sqm">Pflanzen pro m²</label>
+                    <input type="number" step="0.1" id="f-plants_per_sqm" data-key="nursery.plants_per_sqm">
+                </div>
+            </div>
+            <div class="pdb-field">
+                <label for="f-nursery_notes">Notizen Kultur</label>
+                <input type="text" id="f-nursery_notes" data-key="nursery.notes">
+            </div>
+        </div>
+    </div>
+
+    {# ============================================================ #}
+    {# SECTION 13: SYNONYME                                         #}
+    {# ============================================================ #}
+    <div class="pdb-section" data-section="synonyms">
+        <div class="pdb-section-header" onclick="pdbToggleSection(this)">
+            <span class="pdb-section-arrow">&#9654;</span>
+            <span class="pdb-section-title">Synonyme</span>
+            <span class="pdb-section-info">Alternative Pflanzennamen</span>
+            <span class="pdb-section-count">mehrfach</span>
+            <span class="pdb-section-dot" id="dot-synonyms"></span>
+        </div>
+        <div class="pdb-section-body">
+            <div id="pdb-synonyms-list">
+                <div class="pdb-multi-row pdb-synonym-row" data-index="0">
+                    <input type="text" data-key="synonyms.0.synonym_name" placeholder="Synonymname" class="pdb-syn-name">
+                    <select data-key="synonyms.0.language" class="pdb-syn-lang">
+                        <option value="">Sprache</option>
+                        <option value="de">DE</option><option value="en">EN</option>
+                        <option value="fr">FR</option><option value="la">LA</option>
+                    </select>
+                    <select data-key="synonyms.0.synonym_type" class="pdb-syn-type">
+                        <option value="">Typ</option>
+                        <option value="common">Volksname</option>
+                        <option value="historical">Historisch</option>
+                        <option value="botanical">Botanisch</option>
+                    </select>
+                    <button type="button" class="pdb-btn-remove" onclick="pdbRemoveRow(this)" title="Entfernen">&#10005;</button>
+                </div>
+            </div>
+            <button type="button" class="pdb-btn-add" onclick="pdbAddSynonym()">＋ Synonym hinzufügen</button>
+        </div>
+    </div>
+
+    {# ============================================================ #}
+    {# SAVE BUTTON                                                  #}
+    {# ============================================================ #}
+    <div class="pdb-save-bar">
+        <button type="button" id="pdb-save-btn" class="pdb-btn-save" onclick="pdbSave()">
+            Pflanze speichern
+        </button>
+    </div>
+
+    </form>
+</div>
+{% endblock %}

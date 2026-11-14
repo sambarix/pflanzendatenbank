@@ -1,0 +1,42 @@
+{% extends 'partials/base.html.twig' %}
+
+{% block content %}
+
+{{ page.content|raw }}
+
+{% if grav.user.authenticated %}
+<hr style="border:none;border-top:2px solid #4B8223;margin:2.5rem 0">
+
+<h2>Funktionen für Gärtnereien</h2>
+
+<h3>Bestand</h3>
+
+<p>Im Menüpunkt «Bestand» verwalten Sie Ihr Sortiment. Sie sehen alle Pflanzen die Sie erfasst haben, mit Menge, Topfgrösse und Status.</p>
+
+<p><strong>Pflanze aufnehmen</strong> — Über «Aufnehmen» fügen Sie eine Pflanze aus der Datenbank zu Ihrem Sortiment hinzu. Sie wählen Topfgrösse und Menge, optional Standort und Lieferwoche.</p>
+
+<p><strong>Standort</strong> — Im Editpanel können Sie bis zu drei Ebenen auswählen (z.B. Gewächshaus → Tisch → Sektor). Die Dropdowns erscheinen automatisch je nach Ihren angelegten Standorten. Standorte verwalten Sie unter «Mein Profil → Standorte».</p>
+
+<p><strong>Öffentlich sichtbar</strong> — Wenn Sie die Checkbox «Öffentlich sichtbar» aktivieren, erscheint Ihre Gärtnerei im öffentlichen Pflanzenportrait unter «Erhältlich bei». Dies ist unabhängig vom Status — auch Pflanzen im Sortiment (z.B. Mutterpflanzen oder Saatgut) können publiziert werden. Wenn Sie die Checkbox wieder deaktivieren, verschwindet der Eintrag automatisch aus dem Portrait.</p>
+
+<p><strong>Verfügbarkeit aktualisieren</strong> — Mengen und Status können jederzeit direkt in der Liste angepasst werden.</p>
+
+<h3>Eingabe</h3>
+
+<p>Unter «Eingabe» können Sie Pflanzen erfassen, die noch nicht in der Datenbank vorhanden sind — mit botanischem Namen, Kategorie und allen verfügbaren Merkmalen.</p>
+
+<h3>Bestandsmeldungen organicxseeds</h3>
+
+<p>Unter «Transfer» können Sie Ihre Bestände an organicxseeds.ch melden. <em>(In Entwicklung)</em></p>
+
+<h3>Etiketten und Pflanzenschilder</h3>
+
+<p>Direkter Etikettendruck aus der Datenbank für Töpfe und Gebinde. <em>(In Entwicklung)</em></p>
+
+<h3>Mein Profil</h3>
+
+<p>Unter «Mein Profil» können Sie Ihre Betriebsangaben und Ihr Passwort aktualisieren.</p>
+
+{% endif %}
+
+{% endblock %}

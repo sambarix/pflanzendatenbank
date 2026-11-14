@@ -1,0 +1,205 @@
+/* Portrait — minimales Design */
+
+.pdb-portrait {
+    max-width: 900px;
+    margin: 2rem auto;
+    padding: 0 1rem;
+    font-family: 'Liberation Sans', Arial, sans-serif;
+    color: #111;
+}
+
+/* Botanischer Name: volle Breite, über Foto */
+.pdb-portrait-title {
+    font-size: 1.8rem;
+    font-weight: bold;
+    color: #111;
+    margin: 0 0 1rem 0;
+    line-height: 1.2;
+}
+
+/* Header: Foto links, Namen + Kurztext rechts */
+.pdb-portrait-header {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 2rem;
+    align-items: start;
+    margin-bottom: 2rem;
+}
+
+/* Bild — quadratisch */
+.pdb-portrait-image {
+    width: 300px;
+    flex-shrink: 0;
+}
+
+.pdb-portrait-image img {
+    width: 300px;
+    height: auto;
+    border-radius: 4px;
+    display: block;
+}
+
+.pdb-portrait-image-nav {
+    display: flex;
+    gap: 4px;
+    margin-top: 6px;
+    flex-wrap: wrap;
+}
+
+.pdb-portrait-image-nav img {
+    width: 48px;
+    height: 48px;
+    object-fit: cover;
+    border-radius: 2px;
+    cursor: pointer;
+    opacity: 0.6;
+    border: 2px solid transparent;
+    transition: opacity 0.15s;
+}
+
+.pdb-portrait-image-nav img.active,
+.pdb-portrait-image-nav img:hover {
+    opacity: 1;
+    border-color: #4B8223;
+}
+
+/* Rechte Seite: Namen + Kurztext */
+.pdb-portrait-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+/* Namen-Liste (DE / EN / FR / IT) */
+.pdb-portrait-names {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.pdb-portrait-name-row {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+}
+
+.pdb-lang {
+    font-size: 0.68rem;
+    color: #4B8223;
+    font-weight: bold;
+    min-width: 1.8rem;
+    letter-spacing: 0.03em;
+}
+
+.pdb-lang-name {
+    font-size: 0.95rem;
+    color: #111;
+}
+
+.pdb-portrait-desc {
+    font-size: 0.95rem;
+    line-height: 1.6;
+    color: #111;
+    margin: 0;
+}
+
+/* Langtext + Pflanzhinweise */
+.pdb-portrait-longtext {
+    margin-bottom: 2rem;
+}
+
+.pdb-portrait-longtext p {
+    line-height: 1.7;
+    margin: 0;
+}
+
+/* Trennlinie */
+.pdb-portrait-divider {
+    border: none;
+    border-top: 1px solid #e0e0e0;
+    margin: 1.5rem 0;
+}
+
+/* Daten-Sektionen */
+.pdb-portrait-sections {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 1.5rem 2rem;
+    margin-bottom: 2rem;
+}
+
+.pdb-portrait-section h3 {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #4B8223;
+    margin: 0 0 0.6rem 0;
+    padding-bottom: 0.3rem;
+    border-bottom: 1px solid #e8f4e0;
+}
+
+/* Einzelnes Feld */
+.pdb-portrait-field {
+    margin-bottom: 0.5rem;
+}
+
+.pdb-portrait-field-label {
+    font-size: 0.72rem;
+    color: #4B8223;
+    display: block;
+    margin-bottom: 1px;
+}
+
+.pdb-portrait-field-value {
+    font-size: 0.9rem;
+    color: #111;
+    display: block;
+}
+
+/* Kategorien + Synonyme */
+.pdb-portrait-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 0.3rem;
+}
+
+.pdb-portrait-tag {
+    font-size: 0.78rem;
+    background: #f0f7eb;
+    color: #4B8223;
+    padding: 2px 8px;
+    border-radius: 3px;
+}
+
+/* Zurück-Link */
+.pdb-portrait-back {
+    font-size: 0.85rem;
+    color: #4B8223;
+    text-decoration: none;
+    display: inline-block;
+    margin-bottom: 1.5rem;
+}
+
+.pdb-portrait-back:hover { text-decoration: underline; }
+
+/* Fehler */
+.pdb-portrait-error {
+    padding: 2rem;
+    text-align: center;
+    color: #666;
+}
+
+/* Mobile */
+@media (max-width: 600px) {
+    .pdb-portrait-header {
+        grid-template-columns: 1fr;
+    }
+    .pdb-portrait-image {
+        width: 100%;
+    }
+    .pdb-portrait-image img {
+        width: 100%;
+        height: auto;
+    }
+}

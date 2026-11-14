@@ -1,0 +1,7 @@
+# Beispiel fuer user/config/site.yaml
+title: 'Pflanzendatenbank'
+default_lang: de
+author:
+  name: 'Name des Betreibers'
+metadata:
+  description: 'Pflanzendatenbank fuer Bio-Gaertnereien'

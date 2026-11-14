@@ -1,0 +1,360 @@
+{% extends 'partials/base.html.twig' %}
+
+{% block stylesheets %}
+    {{ parent() }}
+    {% do assets.addCss('theme://css/liste.css') %}
+    {% do assets.addCss('theme://css/bestand.css') %}
+    {% do assets.addCss('theme://css/anfrage.css') %}
+{% endblock %}
+
+{% block javascripts %}
+    {{ parent() }}
+    {% do assets.addJs('theme://js/vendor/htmx.2.0.4.min.js', {group: 'bottom'}) %}
+{% endblock %}
+
+{% block content %}
+{% set db_path = grav.user.get('db_path') %}
+
+{% if not db_path %}
+<div class="container grid-md">
+    <div class="toast toast-error">
+        Kein Gärtnerei-Konto gefunden. Bitte zuerst <a href="{{ base_url_relative }}/registrieren">registrieren</a>.
+    </div>
+</div>
+{% else %}
+
+<div class="pdb-liste-container pdb-bestand-container pdb-anfrage-container">
+
+    <p class="pdb-anf-intro">
+        Hier wird eine Liste von Pflanzen zusammengestellt, die zugekauft werden sollen (Vermehrungsmaterial oder
+        Pflanzen aller Stadien) und von denen nicht bekannt ist, ob es sie in Bioqualität gibt. Die Liste lässt sich
+        als Excel-Datei mit Auswahlfeldern zum Ankreuzen oder als CSV an Anbieter schicken.
+    </p>
+
+    {# === Liste waehlen / anlegen === #}
+    <div class="pdb-anf-listbar">
+        <label for="pdb-anf-list">Anfrage:</label>
+        <select id="pdb-anf-list" class="pdb-anf-input" onchange="pdbAnfSelect(this.value)"></select>
+        <button type="button" id="pdb-anf-delete" class="pdb-btn pdb-btn-secondary" onclick="pdbAnfDelete()" style="display:none">Anfrage löschen</button>
+        <span class="pdb-anf-spacer"></span>
+        <input type="text" id="pdb-anf-newtitle" class="pdb-anf-input" maxlength="120" placeholder="Titel der neuen Anfrage"
+               onkeydown="if (event.key === 'Enter') { pdbAnfCreate(); }">
+        <button type="button" class="pdb-btn" onclick="pdbAnfCreate()">Neue Anfrage</button>
+    </div>
+
+    <div id="pdb-anf-msg" class="pdb-anf-msg" style="display:none"></div>
+
+    <div id="pdb-anf-work" style="display:none">
+
+        {# === 1. Suche in der Pflanzendatenbank === #}
+        <div class="pdb-toolbar">
+            <div class="pdb-search-box">
+                <input type="search"
+                       id="pdb-search-input"
+                       name="term"
+                       placeholder="Pflanze in der Datenbank suchen (botanischer Name, deutscher Name)..."
+                       autocomplete="off"
+                       hx-get="{{ base_url_relative }}/pdb-api/anfrage?action=search"
+                       hx-trigger="input changed delay:300ms, search"
+                       hx-target="#pdb-search-results">
+            </div>
+            <div id="pdb-search-results" class="pdb-search-results"></div>
+            <div id="pdb-aufnehmen-bar" class="pdb-aufnehmen-bar" style="display:none">
+                <button type="button" class="pdb-btn" onclick="pdbAnfAddMaster()">
+                    Ausgewählte hinzufügen (<span id="pdb-selected-count">0</span>)
+                </button>
+                <button type="button" class="pdb-btn pdb-btn-secondary" onclick="pdbAnfSearchClear()">Abbrechen</button>
+            </div>
+        </div>
+
+        {# === 2. Freie Eingabe === #}
+        <div class="pdb-anf-block">
+            <div class="pdb-anf-title">Pflanze frei eingeben (auch wenn sie nicht in der Datenbank steht)</div>
+            <div class="pdb-anf-free">
+                <div>
+                    <label for="pdb-anf-genus">Gattung</label>
+                    <input type="text" id="pdb-anf-genus" class="pdb-anf-input" list="pdb-dl-genus" maxlength="80" autocomplete="off" placeholder="z.B. Salvia">
+                    <datalist id="pdb-dl-genus"></datalist>
+                </div>
+                <div>
+                    <label for="pdb-anf-species">Art</label>
+                    <input type="text" id="pdb-anf-species" class="pdb-anf-input" list="pdb-dl-species" maxlength="80" autocomplete="off" placeholder="z.B. officinalis">
+                    <datalist id="pdb-dl-species"></datalist>
+                </div>
+                <div>
+                    <label for="pdb-anf-cultivar">Sorte</label>
+                    <input type="text" id="pdb-anf-cultivar" class="pdb-anf-input" list="pdb-dl-cultivar" maxlength="80" autocomplete="off" placeholder="z.B. Berggarten"
+                           onkeydown="if (event.key === 'Enter') { pdbAnfAddFree(); }">
+                    <datalist id="pdb-dl-cultivar"></datalist>
+                </div>
+                <div>
+                    <button type="button" class="pdb-btn" onclick="pdbAnfAddFree()">Hinzufügen</button>
+                </div>
+            </div>
+        </div>
+
+        {# === 3. Liste einfuegen === #}
+        <details class="pdb-anf-block">
+            <summary>Liste einfügen (eine Pflanze pro Zeile)</summary>
+            <textarea id="pdb-anf-paste" class="pdb-anf-input pdb-anf-paste" rows="5"
+                      placeholder="Salvia officinalis 'Berggarten'&#10;Thymus vulgaris&#10;Lavandula angustifolia Hidcote"></textarea>
+            <button type="button" class="pdb-btn" onclick="pdbAnfAddPaste()">Einfügen</button>
+            <p class="pdb-anf-hint">Zeilen aus Excel (Gattung, Art, Sorte in drei Spalten) können direkt eingefügt werden.</p>
+        </details>
+
+        {# === Export und Anzahl === #}
+        <div class="pdb-anf-exportbar">
+            <a class="pdb-btn" id="pdb-anf-xlsx" href="#">Excel herunterladen (mit Auswahlfeldern)</a>
+            <a class="pdb-btn pdb-btn-secondary" id="pdb-anf-csv" href="#">CSV herunterladen</a>
+            <div class="pdb-result-info"><span id="pdb-result-count">Laden...</span></div>
+        </div>
+
+        {# === Tabelle === #}
+        <div class="pdb-table-wrapper">
+            <table class="pdb-table pdb-table-bestand" id="pdb-anf-table">
+                <thead><tr><th>Laden...</th></tr></thead>
+                <tbody><tr><td>Daten werden geladen...</td></tr></tbody>
+            </table>
+        </div>
+    </div>
+
+</div>{# end container #}
+
+<script>
+var pdbAnfApi    = '{{ base_url_relative }}/pdb-api/anfrage';
+var pdbAnfListId = 0;
+var pdbAnfTitles = {};
+
+function pdbAnfEl(id) { return document.getElementById(id); }
+
+function pdbAnfFlash(text, ok) {
+    var m = pdbAnfEl('pdb-anf-msg');
+    if (!text) { m.style.display = 'none'; return; }
+    m.className = 'pdb-anf-msg ' + (ok ? 'is-ok' : 'is-err');
+    m.textContent = text;
+    m.style.display = 'block';
+}
+
+function pdbAnfPost(params) {
+    var data = new FormData();
+    Object.keys(params).forEach(function(k) {
+        var v = params[k];
+        if (Array.isArray(v)) { v.forEach(function(x) { data.append(k + '[]', x); }); }
+        else { data.append(k, v); }
+    });
+    return fetch(pdbAnfApi, { method: 'POST', body: data })
+        .then(function(r) { return r.json(); })
+        .catch(function() { return { error: 'Verbindungsfehler.' }; });
+}
+
+function pdbAnfStoreList(id) {
+    try { window.localStorage.setItem('pdbAnfList', String(id)); } catch (e) {}
+}
+function pdbAnfStoredList() {
+    try { return parseInt(window.localStorage.getItem('pdbAnfList'), 10) || 0; } catch (e) { return 0; }
+}
+
+/* --- Listen --- */
+function pdbAnfLoadLists(preferId, keep) {
+    fetch(pdbAnfApi + '?action=lists')
+        .then(function(r) { return r.json(); })
+        .then(function(lists) {
+            var sel = pdbAnfEl('pdb-anf-list');
+            sel.innerHTML = '';
+            pdbAnfTitles = {};
+            if (!Array.isArray(lists)) { pdbAnfFlash(lists && lists.error ? lists.error : 'Fehler beim Laden.', false); return; }
+            lists.forEach(function(l) {
+                pdbAnfTitles[l.id] = l.title;
+                var o = document.createElement('option');
+                o.value = l.id;
+                o.textContent = l.title + ' (' + l.count + ')';
+                sel.appendChild(o);
+            });
+            if (!lists.length) {
+                pdbAnfListId = 0;
+                pdbAnfEl('pdb-anf-work').style.display = 'none';
+                pdbAnfEl('pdb-anf-delete').style.display = 'none';
+                var o2 = document.createElement('option');
+                o2.textContent = '- noch keine Anfrage -';
+                sel.appendChild(o2);
+                var d = new Date();
+                pdbAnfEl('pdb-anf-newtitle').value = 'Anfrage ' + ('0' + d.getDate()).slice(-2) + '.' + ('0' + (d.getMonth() + 1)).slice(-2) + '.' + d.getFullYear();
+                return;
+            }
+            if (keep && pdbAnfListId) {
+                /* nur die Zaehler in der Auswahl auffrischen, Meldung und Ansicht bleiben */
+                sel.value = pdbAnfListId;
+                return;
+            }
+            var want = preferId || pdbAnfStoredList();
+            var found = lists.some(function(l) { return l.id == want; });
+            pdbAnfSelect(found ? want : lists[0].id);
+        });
+}
+
+function pdbAnfSelect(id) {
+    id = parseInt(id, 10) || 0;
+    if (!id) { return; }
+    pdbAnfListId = id;
+    pdbAnfStoreList(id);
+    pdbAnfEl('pdb-anf-list').value = id;
+    pdbAnfEl('pdb-anf-work').style.display = 'block';
+    pdbAnfEl('pdb-anf-delete').style.display = '';
+    pdbAnfFlash('');
+    pdbAnfSearchClear();
+    pdbAnfEl('pdb-anf-xlsx').href = pdbAnfApi + '?action=export_xlsx&list_id=' + id;
+    pdbAnfEl('pdb-anf-csv').href  = pdbAnfApi + '?action=export_csv&list_id=' + id;
+    pdbAnfReloadItems();
+}
+
+function pdbAnfReloadItems() {
+    if (!pdbAnfListId) { return; }
+    htmx.ajax('GET', pdbAnfApi + '?action=items&list_id=' + pdbAnfListId, { target: '#pdb-anf-table', swap: 'innerHTML' });
+}
+
+function pdbAnfCreate() {
+    var title = pdbAnfEl('pdb-anf-newtitle').value;
+    pdbAnfPost({ action: 'list_create', title: title }).then(function(res) {
+        if (res.success) {
+            pdbAnfEl('pdb-anf-newtitle').value = '';
+            pdbAnfLoadLists(res.id);
+        } else {
+            pdbAnfFlash(res.error || 'Fehler.', false);
+        }
+    });
+}
+
+function pdbAnfDelete() {
+    if (!pdbAnfListId) { return; }
+    var t = pdbAnfTitles[pdbAnfListId] || 'Anfrage';
+    if (!confirm('«' + t + '» mit allen Pflanzen löschen?')) { return; }
+    pdbAnfPost({ action: 'list_delete', list_id: pdbAnfListId }).then(function(res) {
+        if (res.success) { pdbAnfLoadLists(0); } else { pdbAnfFlash(res.error || 'Fehler.', false); }
+    });
+}
+
+/* --- Pflanzen hinzufuegen --- */
+function pdbAnfAfterAdd(res, okFields) {
+    if (res.success) {
+        pdbAnfFlash(res.message, true);
+        (okFields || []).forEach(function(id) { pdbAnfEl(id).value = ''; });
+        pdbAnfReloadItems();
+        pdbAnfLoadListsKeep();
+    } else {
+        pdbAnfFlash(res.error || 'Fehler.', false);
+    }
+}
+
+/* Zaehler in der Listenauswahl aktualisieren, ohne die Auswahl zu verlieren */
+function pdbAnfLoadListsKeep() { pdbAnfLoadLists(pdbAnfListId, true); }
+
+function pdbAnfAddMaster() {
+    var ids = [];
+    document.querySelectorAll('.pdb-search-cb:checked').forEach(function(cb) { ids.push(cb.value); });
+    if (!ids.length) { return; }
+    pdbAnfPost({ action: 'add_master', list_id: pdbAnfListId, plant_ids: ids }).then(function(res) {
+        pdbAnfAfterAdd(res, []);
+        if (res.success) { pdbAnfSearchClear(); }
+    });
+}
+
+function pdbAnfAddFree() {
+    pdbAnfPost({
+        action: 'add_free', list_id: pdbAnfListId,
+        genus: pdbAnfEl('pdb-anf-genus').value,
+        species: pdbAnfEl('pdb-anf-species').value,
+        cultivar: pdbAnfEl('pdb-anf-cultivar').value
+    }).then(function(res) {
+        pdbAnfAfterAdd(res, ['pdb-anf-genus', 'pdb-anf-species', 'pdb-anf-cultivar']);
+        if (res.success) { pdbAnfEl('pdb-anf-genus').focus(); }
+    });
+}
+
+function pdbAnfAddPaste() {
+    var t = pdbAnfEl('pdb-anf-paste').value;
+    if (!t.trim()) { return; }
+    pdbAnfPost({ action: 'add_paste', list_id: pdbAnfListId, text: t }).then(function(res) {
+        pdbAnfAfterAdd(res, res.success ? ['pdb-anf-paste'] : []);
+    });
+}
+
+function pdbAnfNote(itemId, input) {
+    pdbAnfPost({ action: 'set_note', item_id: itemId, note: input.value }).then(function(res) {
+        if (!res.success) { pdbAnfFlash(res.error || 'Bemerkung konnte nicht gespeichert werden.', false); }
+    });
+}
+
+function pdbAnfRemove(itemId) {
+    pdbAnfPost({ action: 'remove_item', item_id: itemId }).then(function(res) {
+        if (res.success) { pdbAnfReloadItems(); pdbAnfLoadListsKeep(); }
+        else { pdbAnfFlash(res.error || 'Fehler.', false); }
+    });
+}
+
+/* --- Suchtreffer --- */
+function pdbAnfUpdateBar() {
+    var n = document.querySelectorAll('.pdb-search-cb:checked').length;
+    pdbAnfEl('pdb-selected-count').textContent = n;
+    pdbAnfEl('pdb-aufnehmen-bar').style.display = n > 0 ? 'block' : 'none';
+}
+
+function pdbAnfSearchClear() {
+    pdbAnfEl('pdb-search-input').value = '';
+    pdbAnfEl('pdb-search-results').innerHTML = '';
+    pdbAnfEl('pdb-aufnehmen-bar').style.display = 'none';
+}
+
+document.addEventListener('htmx:afterSettle', function(e) {
+    var t = (e.detail && e.detail.target) ? e.detail.target : e.target;
+    var id = (t && t.id) ? t.id : '';
+    if (id === 'pdb-search-results') {
+        pdbAnfUpdateBar();
+        document.querySelectorAll('.pdb-search-cb').forEach(function(cb) { cb.addEventListener('change', pdbAnfUpdateBar); });
+    } else if (id === 'pdb-anf-table') {
+        var tb = document.querySelector('#pdb-anf-table tbody[data-count]');
+        var n = tb ? (parseInt(tb.getAttribute('data-count'), 10) || 0) : 0;
+        var title = pdbAnfTitles[pdbAnfListId] || 'Anfrage';
+        pdbAnfEl('pdb-result-count').textContent = title + ': ' + n + (n === 1 ? ' Pflanze' : ' Pflanzen');
+        ['pdb-anf-xlsx', 'pdb-anf-csv'].forEach(function(x) { pdbAnfEl(x).classList.toggle('is-disabled', n === 0); });
+    }
+});
+
+/* --- Autovervollstaendigung (Gattung, Art, Sorte) --- */
+function pdbAnfFillDatalist(listId, items) {
+    var dl = pdbAnfEl(listId);
+    dl.innerHTML = '';
+    (items || []).forEach(function(v) {
+        var o = document.createElement('option');
+        o.value = v;
+        dl.appendChild(o);
+    });
+}
+
+var pdbAnfAcTimer = null;
+function pdbAnfAutocomplete(field) {
+    clearTimeout(pdbAnfAcTimer);
+    pdbAnfAcTimer = setTimeout(function() {
+        var q = '?action=autocomplete_' + field
+              + '&term=' + encodeURIComponent(pdbAnfEl('pdb-anf-' + field).value)
+              + '&genus=' + encodeURIComponent(pdbAnfEl('pdb-anf-genus').value)
+              + '&species=' + encodeURIComponent(pdbAnfEl('pdb-anf-species').value);
+        fetch(pdbAnfApi + q)
+            .then(function(r) { return r.json(); })
+            .then(function(items) { pdbAnfFillDatalist('pdb-dl-' + field, Array.isArray(items) ? items : []); })
+            .catch(function() {});
+    }, 200);
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    ['genus', 'species', 'cultivar'].forEach(function(f) {
+        var el = pdbAnfEl('pdb-anf-' + f);
+        if (el) {
+            el.addEventListener('input', function() { pdbAnfAutocomplete(f); });
+            el.addEventListener('focus', function() { pdbAnfAutocomplete(f); });
+        }
+    });
+    pdbAnfLoadLists(0);
+});
+</script>
+{% endif %}
+{% endblock %}

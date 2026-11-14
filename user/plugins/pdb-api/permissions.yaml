@@ -1,0 +1,7 @@
+actions:
+  site.pdb_editor:
+    type: access
+    label: PDB Editor (oeffentliche Stammdaten bearbeiten)
+  site.pdb_nursery:
+    type: access
+    label: PDB Gaertnerei (Bestand, Standorte und Export der eigenen Gaertnerei)

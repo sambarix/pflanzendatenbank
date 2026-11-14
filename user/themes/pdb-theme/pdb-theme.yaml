@@ -1,0 +1,22 @@
+enabled: true
+header-fixed: true
+header-animated: true
+header-transparent: false
+header-dark: false
+header-light: false
+sticky-footer: true
+theme-mode: auto
+accent-color: '#4B8223'
+custom_logo:
+  user/themes/pdb-theme/images/logo/logo.svg:
+    name: logo.svg
+custom_logo_mobile:
+  user/themes/pdb-theme/images/logo/logo-mobile.svg:
+    name: logo-mobile.svg
+custom_favicon:
+  user/themes/pdb-theme/images/favicon/favicon.svg:
+    name: favicon.svg
+blog-page: '/blog'
+fontawesome:
+  enabled: true
+  local: true

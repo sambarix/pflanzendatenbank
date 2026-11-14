@@ -1,0 +1,32 @@
+{% extends 'partials/base.html.twig' %}
+
+{% block content %}
+    {% include 'partials/messages.html.twig' %}
+    {{ page.content|raw }}
+
+    <h1 style="font-size:1.6rem;font-weight:bold;margin:0 0 0.5rem">Sortiment exportieren</h1>
+
+    {% set dbPath = grav.user.get('db_path') %}
+    {% if not dbPath %}
+        <p style="font-size:0.95rem">
+            Diesem Konto ist noch keine Gärtnerei zugeordnet.
+            <a href="{{ base_url_relative }}/registrieren">Gärtnerei registrieren</a>
+        </p>
+    {% else %}
+        <p style="font-size:0.95rem;color:#333;margin:0 0 1.2rem">
+            Laden Sie Ihr gesamtes Sortiment als CSV-Datei herunter. Die Datei lässt sich direkt in Excel öffnen
+            (UTF-8, Semikolon als Trennzeichen) und enthält pro Zeile einen Eintrag Ihres Bestands mit
+            botanischem Namen, Topfgrösse, Menge, Status, Preis, Standort und den oXs-Angaben.
+        </p>
+
+        <a href="{{ base_url_relative }}/pdb-api/export" class="button"
+           style="display:inline-block;padding:8px 18px;background:#4B8223;color:#fff;border-radius:3px;
+                  text-decoration:none;font-size:0.95rem">
+            Sortiment als CSV herunterladen
+        </a>
+
+        <p style="font-size:0.82rem;color:#666;margin:1.2rem 0 0">
+            Die letzte Spalte «PDB-ID» ist die interne Pflanzen-Nummer und erlaubt später den Abgleich mit der Datenbank.
+        </p>
+    {% endif %}
+{% endblock %}

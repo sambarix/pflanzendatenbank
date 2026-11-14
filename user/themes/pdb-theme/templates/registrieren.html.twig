@@ -1,0 +1,234 @@
+{% extends 'partials/base.html.twig' %}
+
+{% block content %}
+<div class="container grid-md">
+
+<div id="pdb-reg-loading" style="padding:2rem 0;color:#666;font-size:0.95rem">
+    Wird geprüft…
+</div>
+
+<div id="pdb-reg-container" style="display:none">
+
+<h1>Neu registrieren</h1>
+
+<div id="pdb-message" style="display:none;padding:10px 14px;margin-bottom:16px;border-radius:3px;font-weight:bold"></div>
+
+{% set invite_active = false %}
+{% if grav.config.get('pdb_invite.code') %}{% set invite_active = true %}{% endif %}
+
+{# === KONTOART === #}
+<h5>Ich registriere mich als</h5><div class="divider"></div>
+<div class="form-group">
+  <label class="form-radio">
+    <input type="radio" name="typ" value="gaertnerei" checked onchange="pdbRegTyp()">
+    <i class="form-icon"></i> Gärtnerei (verwaltet einen eigenen Bestand)
+  </label>
+  <label class="form-radio">
+    <input type="radio" name="typ" value="planer" onchange="pdbRegTyp()">
+    <i class="form-icon"></i> Gartenplaner / Gartenbau (ohne eigenen Bestand, erstellt Anfragelisten)
+  </label>
+</div>
+
+{# === KONTO === #}
+<h5>Konto</h5><div class="divider"></div>
+
+<div class="columns">
+  <div class="column col-6 col-sm-12">
+    <div class="form-group">
+      <label class="form-label" for="r-username">Benutzername <span class="required">*</span></label>
+      <input class="form-input" type="text" id="r-username" name="username"
+             autocomplete="off" placeholder="z.B. mustergaertnerei">
+      <p class="form-input-hint">Kleinbuchstaben, Zahlen, - und _ (3–16 Zeichen)</p>
+    </div>
+  </div>
+  <div class="column col-6 col-sm-12">
+    <div class="form-group">
+      <label class="form-label" for="r-email">E-Mail <span class="required">*</span></label>
+      <input class="form-input" type="email" id="r-email" name="email"
+             placeholder="info@ihre-gaertnerei.ch">
+    </div>
+  </div>
+</div>
+
+<div class="columns">
+  <div class="column col-6 col-sm-12">
+    <div class="form-group">
+      <label class="form-label" for="r-password">Passwort <span class="required">*</span></label>
+      <input class="form-input" type="password" id="r-password" name="password"
+             placeholder="Mindestens 8 Zeichen">
+    </div>
+  </div>
+  <div class="column col-6 col-sm-12">
+    <div class="form-group">
+      <label class="form-label" for="r-password2">Passwort wiederholen <span class="required">*</span></label>
+      <input class="form-input" type="password" id="r-password2" name="password2"
+             placeholder="Passwort bestätigen">
+    </div>
+  </div>
+</div>
+
+<div class="form-group">
+  <label class="form-label" for="r-fullname">Name / Betriebsname <span class="required">*</span></label>
+  <input class="form-input" type="text" id="r-fullname" name="fullname"
+         placeholder="Bio Gärtnerei Muster">
+</div>
+
+{# === BETRIEBSANGABEN === #}
+<h5>Betriebsangaben</h5><div class="divider"></div>
+
+<div class="form-group">
+  <label class="form-label" for="r-strasse">Strasse und Hausnummer</label>
+  <input class="form-input" type="text" id="r-strasse" name="betrieb_strasse"
+         placeholder="Dorfstrasse 12">
+</div>
+
+<div class="columns">
+  <div class="column col-2 col-sm-12">
+    <div class="form-group">
+      <label class="form-label" for="r-plz">PLZ</label>
+      <input class="form-input" type="text" id="r-plz" name="betrieb_plz" placeholder="6000">
+    </div>
+  </div>
+  <div class="column col-5 col-sm-12">
+    <div class="form-group">
+      <label class="form-label" for="r-ort">Ort</label>
+      <input class="form-input" type="text" id="r-ort" name="betrieb_ort" placeholder="Luzern">
+    </div>
+  </div>
+  <div class="column col-5 col-sm-12">
+    <div class="form-group">
+      <label class="form-label" for="r-land">Land</label>
+      <select class="form-select" id="r-land" name="betrieb_land">
+        <option value="CH">Schweiz</option>
+        <option value="DE">Deutschland</option>
+        <option value="AT">Österreich</option>
+        <option value="LI">Liechtenstein</option>
+      </select>
+    </div>
+  </div>
+</div>
+
+<div class="columns">
+  <div class="column col-6 col-sm-12">
+    <div class="form-group">
+      <label class="form-label" for="r-telefon">Telefon</label>
+      <input class="form-input" type="text" id="r-telefon" name="betrieb_telefon"
+             placeholder="+41 41 123 45 67">
+    </div>
+  </div>
+  <div class="column col-6 col-sm-12">
+    <div class="form-group">
+      <label class="form-label" for="r-url">Webseite</label>
+      <input class="form-input" type="text" id="r-url" name="betrieb_url"
+             placeholder="https://www.meine-gaertnerei.ch">
+    </div>
+  </div>
+</div>
+
+{# === BIO-ZERTIFIZIERUNG (nur Gaertnerei) === #}
+<div id="pdb-reg-bio">
+<h5>Bio-Zertifizierung</h5><div class="divider"></div>
+
+<div class="columns">
+  <div class="column col-6 col-sm-12">
+    <div class="form-group">
+      <label class="form-label" for="r-biozert">Bio-Zertifizierungsnummer</label>
+      <input class="form-input" type="text" id="r-biozert" name="bio_zertifizierung"
+             placeholder="CH-Bio-006">
+      <p class="form-input-hint">z.B. CH-Bio-006 (Zertifizierungsstelle)</p>
+    </div>
+  </div>
+  <div class="column col-6 col-sm-12">
+    <div class="form-group">
+      <label class="form-label" for="r-bionum">Bio-Betriebsnummer</label>
+      <input class="form-input" type="text" id="r-bionum" name="bio_betriebsnummer"
+             placeholder="11502">
+      <p class="form-input-hint">Ihre Bio Suisse Betriebsnummer</p>
+    </div>
+  </div>
+</div>
+
+</div> {# Ende pdb-reg-bio #}
+
+<div class="form-group">
+  <label class="form-label" for="r-notiz">Notiz / Beschreibung</label>
+  <textarea class="form-input" id="r-notiz" name="betrieb_notiz" rows="3"
+            placeholder="Kurze Beschreibung des Betriebs (optional)"></textarea>
+</div>
+
+{# === BUTTONS === #}
+<div class="form-group" style="margin-top:8px">
+  <button id="r-submit" type="button" class="btn btn-primary" onclick="pdbRegister()">
+    Registrieren
+  </button>
+  <a href="{{ base_url_relative }}/login" class="btn btn-link">Bereits registriert? Einloggen</a>
+</div>
+
+</div> {# Ende pdb-reg-container #}
+</div> {# Ende container #}
+
+<script>
+// Formular nur zeigen wenn Session gültig — sonst sofort zu /pdb/zugang
+fetch('{{ base_url_relative }}/pdb-api/session_check')
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+        if (d.ok) {
+            document.getElementById('pdb-reg-loading').style.display = 'none';
+            document.getElementById('pdb-reg-container').style.display = '';
+        } else {
+            window.location.replace('{{ base_url_relative }}/zugang');
+        }
+    })
+    .catch(function() {
+        // Bei Fehler: sicherheitshalber zur Passphrase-Seite
+        window.location.replace('{{ base_url_relative }}/zugang');
+    });
+
+function pdbRegTyp() {
+    var planer = document.querySelector('[name="typ"]:checked').value === 'planer';
+    document.getElementById('pdb-reg-bio').style.display = planer ? 'none' : '';
+}
+
+function pdbRegister() {
+    var btn = document.getElementById('r-submit');
+    var msg = document.getElementById('pdb-message');
+    msg.style.display = 'none';
+
+    var data = new FormData();
+    data.append('typ', document.querySelector('[name="typ"]:checked').value);
+    var fields = ['username','email','password','password2','fullname',
+                  'betrieb_strasse','betrieb_plz','betrieb_ort','betrieb_land',
+                  'betrieb_telefon','betrieb_url','bio_zertifizierung',
+                  'bio_betriebsnummer','betrieb_notiz'];
+    for (var i = 0; i < fields.length; i++) {
+        var el = document.querySelector('[name="' + fields[i] + '"]');
+        if (el) { data.append(fields[i], el.value); }
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'Wird gespeichert...';
+
+    fetch('{{ base_url_relative }}/pdb-api/register', { method: 'POST', body: data })
+        .then(function(r) { return r.json(); })
+        .then(function(res) {
+            if (res.success) {
+                msg.style.cssText = 'display:block;padding:10px 14px;margin-bottom:16px;border-radius:3px;font-weight:bold;background:#e8f5e9;border:2px solid #4B8223;color:#2e7d32';
+                msg.textContent = res.message;
+                btn.style.display = 'none';
+                setTimeout(function() { window.location.href = '{{ base_url_relative }}/login'; }, 2500);
+            } else {
+                msg.style.cssText = 'display:block;padding:10px 14px;margin-bottom:16px;border-radius:3px;font-weight:bold;background:#fce4ec;border:2px solid #c62828;color:#c62828';
+                msg.innerHTML = res.errors.join('<br>');
+                btn.disabled = false;
+                btn.textContent = 'Registrieren';
+            }
+        })
+        .catch(function() {
+            msg.style.cssText = 'display:block;padding:10px 14px;margin-bottom:16px;border-radius:3px;font-weight:bold;background:#fce4ec;border:2px solid #c62828;color:#c62828';
+            msg.textContent = 'Verbindungsfehler. Bitte nochmals versuchen.';
+            btn.disabled = false;
+            btn.textContent = 'Registrieren';
+        });
+}
+</script>
+{% endblock %}

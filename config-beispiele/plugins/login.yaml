@@ -1,0 +1,8 @@
+# Beispiel fuer user/config/plugins/login.yaml
+enabled: true
+redirect_after_login: true
+route_after_login: '/profile'
+redirect_after_logout: true
+route_after_logout: '/'
+redirect_to_login: true
+dynamic_page_visibility: true

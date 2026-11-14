@@ -1,0 +1,139 @@
+/* ===== PDB BESTAND =====
+   Baut auf liste.css auf (gleiche Klassen: pdb-liste-container, pdb-toolbar,
+   pdb-search-box, pdb-table, pdb-btn ...). Hier nur, was Bestand zusaetzlich braucht.
+   Reihenfolge im Template: liste.css, dann bestand.css. */
+
+/* --- Suchtreffer (Pflanze aufnehmen) --- */
+.pdb-bestand-container .pdb-search-results {
+    display: none;
+    max-height: 260px;
+    overflow-y: auto;
+    margin-bottom: 8px;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 13px;
+}
+.pdb-bestand-container .pdb-search-results:not(:empty) { display: block; }
+.pdb-bestand-container .pdb-search-result {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+    padding: 4px 10px;
+    cursor: pointer;
+    border-bottom: 1px solid #eee;
+}
+.pdb-bestand-container .pdb-search-result:last-child { border-bottom: 0; }
+.pdb-bestand-container .pdb-search-result:hover { background: #f0f4ec; }
+.pdb-bestand-container .pdb-search-result input[type=checkbox] { flex-shrink: 0; margin: 0; }
+.pdb-bestand-container .pdb-botanical { font-weight: bold; color: #000; }
+.pdb-bestand-container .pdb-name-de { color: #555; }
+.pdb-bestand-container .pdb-search-hint { padding: 6px 10px; color: #666; font-style: italic; }
+
+.pdb-aufnehmen-bar { display: none; margin-bottom: 8px; }
+.pdb-aufnehmen-bar .pdb-btn { margin-right: 6px; }
+.pdb-bestand-msg { margin-bottom: 8px; font-size: 13px; font-weight: bold; }
+
+/* --- Sortiment-Tabelle (nicht sortierbar) --- */
+.pdb-table-bestand thead th { cursor: default; }
+.pdb-table-bestand thead th:hover { background: #4B8223; }
+.pdb-table-bestand tbody tr.pdb-row-editing { background: #e3edd8; }
+.pdb-cell-center { text-align: center; }
+.pdb-cell-actions { width: 1%; white-space: nowrap; text-align: center; }
+
+.pdb-st-verkaufsfertig { color: #2e7d32; font-weight: bold; }
+.pdb-st-in_kultur      { color: #795548; }
+.pdb-st-bestellt       { color: #1565c0; }
+.pdb-st-ausverkauft    { color: #c62828; }
+.pdb-st-im_sortiment   { color: #555; }
+.pdb-oxs-pub           { color: #4B8223; font-weight: bold; white-space: nowrap; }
+
+/* Entfernen-Kreuz (SVG), Gegenstueck zum Stift */
+.pdb-table-bestand a.pdb-remove-btn {
+    display: inline-flex;
+    align-items: center;
+    color: #999 !important;
+    text-decoration: none;
+}
+.pdb-table-bestand a.pdb-remove-btn:hover { color: #c62828 !important; text-decoration: none; }
+.pdb-remove-icon { display: block; }
+
+/* --- Bearbeiten-Panel (kompakt, wie der Spaltenwaehler in der Liste) --- */
+.pdb-edit-panel {
+    margin-bottom: 12px;
+    padding: 12px;
+    background: #fff;
+    border: 2px solid #4B8223;
+    border-radius: 4px;
+    font-family: 'Liberation Sans', Arial, sans-serif;
+    font-size: 13px;
+    color: #000;
+}
+.pdb-edit-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+    font-size: 14px;
+    color: #4B8223;
+}
+/* Raster: quark2 kennt .columns/.col-N nur als einspaltiges Grid mit grossem Abstand,
+   daher hier ein eigenes 12er-Raster fuer die Felder im Panel */
+.pdb-edit-panel .columns {
+    display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    gap: 0 12px;
+    columns: auto;
+    margin: 0;
+}
+.pdb-edit-panel .columns > .column { grid-column: span 12; min-width: 0; padding: 0; }
+.pdb-edit-panel .column.col-2 { grid-column: span 2; }
+.pdb-edit-panel .column.col-3 { grid-column: span 3; }
+.pdb-edit-panel .column.col-4 { grid-column: span 4; }
+@media (max-width: 768px) {
+    .pdb-edit-panel .column.col-sm-4  { grid-column: span 4; }
+    .pdb-edit-panel .column.col-sm-6  { grid-column: span 6; }
+    .pdb-edit-panel .column.col-sm-12 { grid-column: span 12; }
+}
+.pdb-edit-panel .form-group { margin-bottom: 8px; }
+.pdb-edit-panel .form-label {
+    margin: 0 0 2px;
+    padding: 0;
+    font-size: 13px;
+    font-weight: bold;
+    line-height: 1.3;
+    color: #000;
+}
+.pdb-edit-panel .form-input,
+.pdb-edit-panel .form-select {
+    width: 100%;
+    height: auto;
+    min-height: 0;
+    padding: 4px 8px;
+    font-family: 'Liberation Sans', Arial, sans-serif;
+    font-size: 13px;
+    color: #000;
+    background-color: #fff;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+    box-shadow: none;
+}
+.pdb-edit-panel .form-input:focus,
+.pdb-edit-panel .form-select:focus {
+    outline: none;
+    border-color: #4B8223;
+    box-shadow: 0 0 0 2px rgba(75, 130, 35, 0.2);
+}
+.pdb-oxs-section {
+    margin: 4px 0 8px;
+    padding-top: 8px;
+    border-top: 1px solid #e0e0e0;
+}
+.pdb-oxs-header {
+    margin-bottom: 6px;
+    font-size: 13px;
+    font-weight: bold;
+    color: #4B8223;
+}
+.pdb-edit-panel .pdb-btn { margin-right: 6px; }

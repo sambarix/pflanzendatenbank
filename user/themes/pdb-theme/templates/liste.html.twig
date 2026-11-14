@@ -1,0 +1,215 @@
+{% extends 'partials/base.html.twig' %}
+
+{% block stylesheets %}
+    {{ parent() }}
+    {% do assets.addCss('theme://css/liste.css') %}
+{% endblock %}
+
+{% block javascripts %}
+    {{ parent() }}
+    {% include 'partials/pdb-base-js.html.twig' %}
+    {% do assets.addJs('theme://js/vendor/htmx.2.0.4.min.js', {group: 'bottom'}) %}
+    {% do assets.addJs('theme://js/liste.js', {group: 'bottom', defer: true}) %}
+{% endblock %}
+
+{% block content %}
+<div class="pdb-liste-container">
+
+    {# === TOOLBAR === #}
+    <div class="pdb-toolbar">
+
+        {# Search #}
+        <div class="pdb-search-box">
+            <input type="search"
+                   id="pdb-search"
+                   name="search"
+                   placeholder="Suche (bot. Name, dt. Name, Gattung, Art, Sorte)..."
+                   autocomplete="off"
+                   hx-get="{{ base_url }}/pdb-api/liste"
+                   hx-trigger="input changed delay:300ms, search"
+                   hx-target="#pdb-table"
+                   hx-swap="innerHTML"
+                   hx-include="#pdb-filter-form"
+                   hx-vals='{"format":"full","page":"1"}'
+            >
+        </div>
+
+        {# Controls row #}
+        <div class="pdb-controls">
+
+            {# Profile selector #}
+            <div class="pdb-control-group">
+                <label for="pdb-profile">Profil:</label>
+                <select id="pdb-profile" name="profile" autocomplete="off" onchange="pdbChangeProfile(this.value)">
+                    <option value="botanik" selected>Botanik</option>
+                    <option value="gaertnerei">Gärtnerei</option>
+                    <option value="planung">Planung</option>
+                    <option value="custom">Eigene...</option>
+                </select>
+            </div>
+
+            {# Per page #}
+            <div class="pdb-control-group">
+                <label for="pdb-per-page">Zeilen:</label>
+                <select id="pdb-per-page" name="per_page" onchange="pdbReload()">
+                    <option value="20" selected>20</option>
+                    <option value="50">50</option>
+                    <option value="100">100</option>
+                    <option value="500">500</option>
+                </select>
+            </div>
+
+            {# Category filter #}
+            <div class="pdb-control-group">
+                <label for="pdb-category">Kategorie:</label>
+                <select id="pdb-category" name="category" onchange="pdbReload()">
+                    <option value="">Alle</option>
+                </select>
+            </div>
+
+            {# Column picker toggle #}
+            <button type="button" class="pdb-btn pdb-btn-columns" onclick="pdbToggleColumnPicker()">
+                Spalten
+            </button>
+
+            {# Result count #}
+            <div class="pdb-result-info">
+                <span id="pdb-result-count">Laden...</span>
+            </div>
+        </div>
+    </div>
+
+    {# === COLUMN PICKER (hidden by default) === #}
+    <div id="pdb-column-picker" class="pdb-column-picker" style="display:none">
+        <div class="pdb-column-picker-inner">
+            <div class="pdb-col-group" data-group="Taxonomie">
+                <strong>Taxonomie</strong>
+                <label><input type="checkbox" value="botanical_name" checked disabled> Botanischer Name</label>
+                <label><input type="checkbox" value="genus" data-col> Gattung</label>
+                <label><input type="checkbox" value="species" data-col> Art</label>
+                <label><input type="checkbox" value="cultivar" data-col> Sorte</label>
+                <label><input type="checkbox" value="subspecies" data-col> Unterart</label>
+                <label><input type="checkbox" value="ecotype" data-col> Ökotyp</label>
+                <label><input type="checkbox" value="matchcode" data-col> Matchcode</label>
+                <label><input type="checkbox" value="web_name" data-col> Webname</label>
+            </div>
+            <div class="pdb-col-group" data-group="Namen">
+                <strong>Namen</strong>
+                <label><input type="checkbox" value="name_de" data-col> Deutscher Name</label>
+                <label><input type="checkbox" value="name_en" data-col> English Name</label>
+                <label><input type="checkbox" value="name_fr" data-col> Nom français</label>
+                <label><input type="checkbox" value="name_it" data-col> Nome italiano</label>
+                <label><input type="checkbox" value="registration_name" data-col> Registrierungsname</label>
+                <label><input type="checkbox" value="trade_name" data-col> Handelsname</label>
+                <label><input type="checkbox" value="synonyms" data-col> Synonyme</label>
+            </div>
+            <div class="pdb-col-group" data-group="Kategorie">
+                <strong>Kategorie</strong>
+                <label><input type="checkbox" value="category_path" data-col> Kategorie</label>
+            </div>
+            <div class="pdb-col-group" data-group="Texte">
+                <strong>Texte</strong>
+                <label><input type="checkbox" value="description_short" data-col> Kurzbeschreibung</label>
+                <label><input type="checkbox" value="description_long" data-col> Langbeschreibung</label>
+                <label><input type="checkbox" value="care_instructions" data-col> Pflanzhinweise</label>
+                <label><input type="checkbox" value="meta_text" data-col> Metatext</label>
+                <label><input type="checkbox" value="notes" data-col> Notizen</label>
+            </div>
+            <div class="pdb-col-group" data-group="Blüte">
+                <strong>Blüte</strong>
+                <label><input type="checkbox" value="flower_color" data-col> Blütenfarbe</label>
+                <label><input type="checkbox" value="flower_scent" data-col> Duft</label>
+                <label><input type="checkbox" value="flower_size" data-col> Blütengrösse</label>
+                <label><input type="checkbox" value="flower_fullness" data-col> Blütenfüllung</label>
+                <label><input type="checkbox" value="flower_form" data-col> Blütenform</label>
+                <label><input type="checkbox" value="flower_blooming" data-col> Blühzyklus</label>
+            </div>
+            <div class="pdb-col-group" data-group="Frucht">
+                <strong>Frucht</strong>
+                <label><input type="checkbox" value="fruit_color" data-col> Fruchtfarbe</label>
+                <label><input type="checkbox" value="fruit_size" data-col> Fruchtgrösse</label>
+                <label><input type="checkbox" value="fruit_taste" data-col> Geschmack</label>
+            </div>
+            <div class="pdb-col-group" data-group="Wuchs">
+                <strong>Wuchs</strong>
+                <label><input type="checkbox" value="growth_cycle" data-col> Lebenszyklus</label>
+                <label><input type="checkbox" value="height_cm" data-col> Höhe (cm)</label>
+                <label><input type="checkbox" value="width_cm" data-col> Breite (cm)</label>
+                <label><input type="checkbox" value="growth_form" data-col> Wuchsform</label>
+                <label><input type="checkbox" value="growth_vigor" data-col> Wuchsstärke</label>
+            </div>
+            <div class="pdb-col-group" data-group="Blatt">
+                <strong>Blatt</strong>
+                <label><input type="checkbox" value="leaf_color" data-col> Blattfarbe</label>
+                <label><input type="checkbox" value="leaf_form" data-col> Blattform</label>
+                <label><input type="checkbox" value="leaf_aroma" data-col> Blattaroma</label>
+                <label><input type="checkbox" value="leaf_evergreen" data-col> Immergrün</label>
+            </div>
+            <div class="pdb-col-group" data-group="Standort">
+                <strong>Standort</strong>
+                <label><input type="checkbox" value="hardiness_zone" data-col> Winterhärtezone</label>
+                <label><input type="checkbox" value="light" data-col> Licht</label>
+                <label><input type="checkbox" value="soil_type" data-col> Bodenart</label>
+                <label><input type="checkbox" value="moisture" data-col> Feuchtigkeit</label>
+                <label><input type="checkbox" value="nutrient_demand" data-col> Nährstoffbedarf</label>
+                <label><input type="checkbox" value="soil_ph_min" data-col> pH min</label>
+                <label><input type="checkbox" value="soil_ph_max" data-col> pH max</label>
+            </div>
+            <div class="pdb-col-group" data-group="Herkunft">
+                <strong>Herkunft</strong>
+                <label><input type="checkbox" value="breeder_name" data-col> Züchter</label>
+                <label><input type="checkbox" value="breeder_year" data-col> Züchtungsjahr</label>
+                <label><input type="checkbox" value="hybrid_status" data-col> Hybridstatus</label>
+            </div>
+            <div class="pdb-col-group" data-group="Gärtnerei">
+                <strong>Gärtnerei</strong>
+                <label><input type="checkbox" value="propagation_method" data-col> Vermehrung</label>
+                <label><input type="checkbox" value="germination_days" data-col> Keimdauer (Tage)</label>
+                <label><input type="checkbox" value="germination_light" data-col> Keimlicht</label>
+                <label><input type="checkbox" value="plants_per_sqm" data-col> Pflanzen/m²</label>
+            </div>
+            <div class="pdb-col-group" data-group="Wurzel">
+                <strong>Wurzel</strong>
+                <label><input type="checkbox" value="root_depth" data-col> Wurzeltiefe</label>
+                <label><input type="checkbox" value="root_form" data-col> Wurzelform</label>
+                <label><input type="checkbox" value="root_anchorage" data-col> Verankerung</label>
+            </div>
+            <div class="pdb-col-group" data-group="Verwendung">
+                <strong>Verwendung</strong>
+                <label><input type="checkbox" value="usage_purpose" data-col> Verwendung</label>
+            </div>
+        </div>
+        <div class="pdb-column-picker-actions">
+            <button type="button" class="pdb-btn" onclick="pdbApplyColumns()">Anwenden</button>
+            <button type="button" class="pdb-btn pdb-btn-secondary" onclick="pdbToggleColumnPicker()">Abbrechen</button>
+        </div>
+    </div>
+
+    {# Hidden form for HTMX state #}
+    <form id="pdb-filter-form" style="display:none">
+        <input type="hidden" name="sort" id="pdb-sort" value="botanical_name">
+        <input type="hidden" name="dir" id="pdb-dir" value="ASC">
+        <input type="hidden" name="profile" id="pdb-profile-hidden" value="botanik">
+        <input type="hidden" name="columns" id="pdb-columns-hidden" value="">
+        <input type="hidden" name="per_page" id="pdb-per-page-hidden" value="20">
+        <input type="hidden" name="category" id="pdb-category-hidden" value="">
+    </form>
+
+    {# === TABLE === #}
+    <div class="pdb-table-wrapper">
+        <table class="pdb-table" id="pdb-table"
+               hx-get="{{ base_url }}/pdb-api/liste?format=full&profile=botanik&per_page=20&page=1"
+               hx-trigger="load"
+               hx-swap="innerHTML">
+            <thead id="pdb-thead"><tr><th>Laden...</th></tr></thead>
+            <tbody id="pdb-tbody"><tr><td>Daten werden geladen...</td></tr></tbody>
+        </table>
+    </div>
+
+    {# === PAGINATION === #}
+    <div class="pdb-pagination-bar">
+        <div id="pdb-pagination"></div>
+    </div>
+
+</div>
+{% endblock %}

@@ -1,0 +1,126 @@
+/* ===== PDB ANFRAGELISTE =====
+   Baut auf liste.css und bestand.css auf (pdb-liste-container, pdb-search-box, pdb-table,
+   pdb-btn, Suchtreffer ...). Reihenfolge im Template: liste.css, bestand.css, anfrage.css. */
+
+.pdb-anf-intro {
+    margin: 0 0 10px;
+    font-size: 13px;
+    line-height: 1.4;
+    color: #333;
+}
+
+/* --- Listenwahl --- */
+.pdb-anf-listbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+    font-size: 13px;
+}
+.pdb-anf-listbar label { font-weight: bold; margin: 0; }
+.pdb-anf-listbar .pdb-anf-spacer { flex: 1 1 auto; }
+
+.pdb-anfrage-container .pdb-anf-input,
+.pdb-anfrage-container select.pdb-anf-input,
+.pdb-anfrage-container textarea.pdb-anf-input {
+    height: auto;
+    min-height: 0;
+    padding: 4px 8px;
+    font-family: 'Liberation Sans', Arial, sans-serif;
+    font-size: 13px;
+    color: #000;
+    background-color: #fff;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+    box-shadow: none;
+    box-sizing: border-box;
+}
+.pdb-anfrage-container .pdb-anf-input:focus {
+    outline: none;
+    border-color: #4B8223;
+    box-shadow: 0 0 0 2px rgba(75, 130, 35, 0.2);
+}
+/* quark2 setzt bei Formularfeldern Breite 100%, Hoehe und Aussenabstand: hier zuruecknehmen */
+.pdb-anfrage-container input.pdb-anf-input,
+.pdb-anfrage-container select.pdb-anf-input { margin: 0; height: 28px; }
+.pdb-anf-listbar select.pdb-anf-input { display: inline-block; width: auto; min-width: 220px; max-width: 100%; }
+.pdb-anf-listbar input.pdb-anf-input { width: 240px; max-width: 100%; }
+.pdb-anfrage-container .pdb-anf-free .pdb-anf-input { width: 100%; }
+.pdb-anfrage-container textarea.pdb-anf-input { margin: 0 0 6px; }
+
+/* --- Hinzufuegen-Bloecke --- */
+.pdb-anf-block {
+    margin-bottom: 10px;
+    padding: 8px 10px;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 13px;
+}
+.pdb-anf-block > .pdb-anf-title,
+.pdb-anf-block > summary {
+    margin: 0 0 6px;
+    font-size: 13px;
+    font-weight: bold;
+    color: #4B8223;
+    cursor: default;
+}
+.pdb-anf-block > summary { cursor: pointer; margin-bottom: 0; }
+.pdb-anf-block[open] > summary { margin-bottom: 6px; }
+
+.pdb-anf-free {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
+    gap: 8px;
+    align-items: end;
+}
+.pdb-anf-free label { display: block; margin: 0 0 2px; font-weight: bold; font-size: 13px; }
+.pdb-anf-free .pdb-anf-input { width: 100%; }
+.pdb-anf-paste { display: block; width: 100%; min-height: 90px; margin-bottom: 6px; resize: vertical; }
+.pdb-anf-hint { margin: 4px 0 0; font-size: 12px; color: #666; }
+
+@media (max-width: 640px) {
+    .pdb-anf-free { grid-template-columns: 1fr; }
+}
+
+/* --- Meldung --- */
+.pdb-anf-msg { margin-bottom: 8px; font-size: 13px; font-weight: bold; }
+.pdb-anf-msg.is-ok  { color: #2e7d32; }
+.pdb-anf-msg.is-err { color: #c62828; }
+
+/* --- Export-Leiste --- */
+.pdb-anf-exportbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+/* custom.css faerbt alle Links per !important, daher hier ebenfalls */
+.pdb-anf-exportbar a.pdb-btn { display: inline-block; text-decoration: none; color: #fff !important; }
+.pdb-anf-exportbar a.pdb-btn.pdb-btn-secondary { color: #4B8223 !important; }
+.pdb-anf-exportbar a.pdb-btn.is-disabled { opacity: 0.45; pointer-events: none; }
+.pdb-anf-exportbar .pdb-result-info { margin-left: auto; }
+
+/* --- Tabelle --- */
+.pdb-anfrage-container .pdb-anf-note {
+    display: block;
+    width: 100%;
+    min-width: 140px;
+    height: 24px;
+    margin: 0;
+    padding: 2px 6px;
+    font-family: 'Liberation Sans', Arial, sans-serif;
+    font-size: 13px;
+    border: 1px solid transparent;
+    border-radius: 3px;
+    background: transparent;
+    box-shadow: none;
+    box-sizing: border-box;
+}
+.pdb-anfrage-container .pdb-anf-note:hover { border-color: #ccc; background: #fff; }
+.pdb-anfrage-container .pdb-anf-note:focus { outline: none; border-color: #4B8223; background: #fff; }
+.pdb-anf-avail { color: #333; }
+.pdb-anf-avail a { color: #4B8223 !important; font-weight: bold; }
+.pdb-anf-none { color: #aaa; }

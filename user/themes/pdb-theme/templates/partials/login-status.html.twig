@@ -1,0 +1,8 @@
+{# pdb-theme: wie das Login-Plugin, aber der Name fuehrt zum Profil und der Link heisst "Abmelden".
+   Der Name wird auf schmaleren Bildschirmen ausgeblendet (siehe custom.css), damit das Menue in eine Zeile passt. #}
+<span class="login-status">
+    {% if grav.user.authenticated %}
+        <span class="login-status-name"><a href="{{ base_url_relative }}/profile" title="Mein Profil"><strong>{{ grav.user.fullname ?: grav.user.username }}</strong></a>,</span>
+        <a class="logout" href="{{ url(uri.addNonce((uri.path)|trim('/') ~ '/task' ~ config.system.param_sep ~ 'login.logout', 'logout-form', 'logout-nonce'))|e }}">Abmelden</a>
+    {% endif %}
+</span>

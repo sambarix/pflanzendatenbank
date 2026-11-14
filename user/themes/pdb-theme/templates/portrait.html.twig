@@ -1,0 +1,269 @@
+{% extends 'partials/base.html.twig' %}
+
+{% block stylesheets %}
+    {{ parent() }}
+    {% do assets.addCss('theme://css/portrait.css') %}
+{% endblock %}
+
+{% block content %}
+<div class="pdb-portrait" id="pdb-portrait">
+
+    <a class="pdb-portrait-back" href="{{ base_url_relative }}/liste">← Zurück zur Liste</a>
+
+    <div id="pdb-portrait-content">
+        <div class="pdb-portrait-error">Pflanze wird geladen...</div>
+    </div>
+
+</div>
+
+<script>
+(function() {
+    var params = new URLSearchParams(window.location.search);
+    var plant  = params.get('plant');
+
+    if (!plant) {
+        document.getElementById('pdb-portrait-content').innerHTML =
+            '<div class="pdb-portrait-error">Keine Pflanze ausgewählt. <a href="{{ base_url_relative }}/liste">Zur Liste</a></div>';
+        return;
+    }
+
+    fetch('{{ base_url_relative }}/pdb-api/portrait?plant=' + encodeURIComponent(plant))
+        .then(function(r) { return r.json(); })
+        .then(function(d) { renderPortrait(d); })
+        .catch(function() {
+            document.getElementById('pdb-portrait-content').innerHTML =
+                '<div class="pdb-portrait-error">Fehler beim Laden.</div>';
+        });
+
+    function val(d, key) {
+        return d[key] !== undefined && d[key] !== null && d[key] !== '' ? d[key] : null;
+    }
+
+    function field(label, value) {
+        if (!value) return '';
+        return '<div class="pdb-portrait-field">' +
+            '<span class="pdb-portrait-field-label">' + label + '</span>' +
+            '<span class="pdb-portrait-field-value">' + value + '</span>' +
+            '</div>';
+    }
+
+    function section(title, fields) {
+        var content = fields.filter(Boolean).join('');
+        if (!content) return '';
+        return '<div class="pdb-portrait-section"><h3>' + title + '</h3>' + content + '</div>';
+    }
+
+    function renderPortrait(d) {
+        if (d.error) {
+            document.getElementById('pdb-portrait-content').innerHTML =
+                '<div class="pdb-portrait-error">' + d.error + '</div>';
+            return;
+        }
+
+        var html = '';
+
+        // --- BILD-HTML aufbauen ---
+        var images = d.images || [];
+        var imgHtml = '';
+        if (images.length > 0) {
+            imgHtml = '<div class="pdb-portrait-image">' +
+                '<img id="pdb-main-img" src="' + images[0] + '" alt="' + (d.botanical_name || '') + '">';
+            if (images.length > 1) {
+                imgHtml += '<div class="pdb-portrait-image-nav">';
+                images.forEach(function(src, i) {
+                    imgHtml += '<img src="' + src + '" class="' + (i===0?'active':'') + '" ' +
+                        'onclick="document.getElementById(\'pdb-main-img\').src=this.src;' +
+                        'document.querySelectorAll(\'.pdb-portrait-image-nav img\').forEach(function(x){x.classList.remove(\'active\')});' +
+                        'this.classList.add(\'active\')">';
+                });
+                imgHtml += '</div>';
+            }
+            imgHtml += '</div>';
+        }
+
+        // --- BOTANISCHER NAME: volle Breite, über Foto ---
+        html += '<h1 class="pdb-portrait-title">' + (d.botanical_name || '') + '</h1>';
+
+        // --- HEADER: Foto links, Namen + Kurztext rechts ---
+        html += '<div class="pdb-portrait-header">';
+        if (imgHtml) html += imgHtml;
+
+        // Rechte Seite
+        html += '<div class="pdb-portrait-meta">';
+
+        // Namen-Liste (DE, EN, FR, IT — nur wenn vorhanden)
+        var hasName = val(d,'name_de') || val(d,'name_en') || val(d,'name_fr') || val(d,'name_it');
+        if (hasName) {
+            html += '<div class="pdb-portrait-names">';
+            if (val(d,'name_de')) html += '<div class="pdb-portrait-name-row"><span class="pdb-lang">DE</span><span class="pdb-lang-name">' + d.name_de + '</span></div>';
+            if (val(d,'name_en')) html += '<div class="pdb-portrait-name-row"><span class="pdb-lang">EN</span><span class="pdb-lang-name">' + d.name_en + '</span></div>';
+            if (val(d,'name_fr')) html += '<div class="pdb-portrait-name-row"><span class="pdb-lang">FR</span><span class="pdb-lang-name">' + d.name_fr + '</span></div>';
+            if (val(d,'name_it')) html += '<div class="pdb-portrait-name-row"><span class="pdb-lang">IT</span><span class="pdb-lang-name">' + d.name_it + '</span></div>';
+            html += '</div>';
+        }
+
+        // Kurztext neben Foto
+        if (val(d,'description_short')) html += '<p class="pdb-portrait-desc">' + d.description_short + '</p>';
+
+        html += '</div>'; // .pdb-portrait-meta
+        html += '</div>'; // .pdb-portrait-header
+
+        // --- LANGTEXT ---
+        if (val(d,'description_long') || val(d,'care_instructions')) {
+            html += '<hr class="pdb-portrait-divider">';
+            html += '<div class="pdb-portrait-longtext">';
+            if (val(d,'description_long')) {
+                html += '<p>' + d.description_long + '</p>';
+            }
+            if (val(d,'care_instructions')) {
+                html += '<p style="margin-top:0.8rem"><strong style="font-size:0.8rem;color:#4B8223">Pflanzhinweise</strong><br>' + d.care_instructions + '</p>';
+            }
+            html += '</div>';
+        }
+
+        // --- DATENSEKTIONEN ---
+        html += '<hr class="pdb-portrait-divider">';
+        html += '<div class="pdb-portrait-sections">';
+
+        html += section('Taxonomie', [
+            field('Gattung',  val(d,'genus')),
+            field('Art',      val(d,'species')),
+            field('Unterart', val(d,'subspecies')),
+            field('Sorte',    val(d,'cultivar')),
+            field('Ökotyp',   val(d,'ecotype')),
+        ]);
+
+        html += section('Namen', [
+            field('Englisch',        val(d,'name_en')),
+            field('Français',        val(d,'name_fr')),
+            field('Italiano',        val(d,'name_it')),
+            field('Handelsname',     val(d,'trade_name')),
+            field('Registrierung',   val(d,'registration_name')),
+        ]);
+
+        html += section('Standort', [
+            field('Winterhärtezone', val(d,'hardiness_zone')),
+            field('Licht',           val(d,'light_requirement')),
+            field('Feuchtigkeit',    val(d,'moisture_requirement')),
+            field('Bodenart',        val(d,'soil_type')),
+            field('pH',              val(d,'soil_ph_min') && val(d,'soil_ph_max') ?
+                d.soil_ph_min + ' – ' + d.soil_ph_max : (val(d,'soil_ph_min') || val(d,'soil_ph_max'))),
+            field('Nährstoffbedarf', val(d,'nutrient_demand')),
+        ]);
+
+        html += section('Blüte', [
+            field('Farbe',      val(d,'flower_color')),
+            field('Duft',       val(d,'fragrance')),
+            field('Grösse',     val(d,'flower_size')),
+            field('Füllung',    val(d,'fullness')),
+            field('Form',       val(d,'flower_form')),
+            field('Blühzyklus', val(d,'blooming_cycle')),
+            field('Vasenhaltbarkeit', val(d,'vase_life') ? d.vase_life + ' Tage' : null),
+        ]);
+
+        html += section('Wuchs', [
+            field('Lebenszyklus', val(d,'growth_cycle')),
+            field('Höhe',    val(d,'height_cm') ? d.height_cm + ' cm' : null),
+            field('Breite',  val(d,'width_cm') ? d.width_cm + ' cm' : null),
+            field('Wuchsform',  val(d,'growth_form_primary')),
+            field('Wuchsstärke',val(d,'growth_vigor')),
+        ]);
+
+        html += section('Blatt', [
+            field('Farbe',     val(d,'leaf_color')),
+            field('Form',      val(d,'leaf_form')),
+            field('Aroma',     val(d,'leaf_aroma')),
+            field('Immergrün', val(d,'evergreen') ? 'Ja' : null),
+            field('Herbstfärbung', val(d,'autumn_color')),
+        ]);
+
+        html += section('Frucht', [
+            field('Farbe',     val(d,'fruit_color')),
+            field('Grösse',    val(d,'fruit_size')),
+            field('Geschmack', val(d,'fruit_taste')),
+            field('Saftigkeit',val(d,'juiciness')),
+        ]);
+
+        html += section('Wurzel', [
+            field('Tiefe',      val(d,'root_depth')),
+            field('Form',       val(d,'root_form')),
+            field('Verankerung',val(d,'root_anchorage')),
+        ]);
+
+        html += section('Herkunft', [
+            field('Züchter',        val(d,'breeder_name')),
+            field('Züchterfirma',   val(d,'breeder_company')),
+            field('Land',           val(d,'breeder_country')),
+            field('Jahr',           val(d,'breeder_year')),
+            field('Hybridstatus',   val(d,'hybrid_status')),
+            field('Elternpflanzen', val(d,'hybrid_parents')),
+            field('Ursprungsregion',val(d,'origin_region')),
+            field('Züchtungsmethode',val(d,'breeding_method')),
+        ]);
+
+        html += section('Gärtnerei & Kultur', [
+            field('Vermehrung',        val(d,'propagation_method')),
+            field('Keimdauer',         val(d,'germination_days') ? d.germination_days + ' Tage' : null),
+            field('Keimtemperatur',    val(d,'germination_temp_min_c') && val(d,'germination_temp_max_c') ?
+                d.germination_temp_min_c + ' – ' + d.germination_temp_max_c + ' °C' : null),
+            field('Keimlicht',         val(d,'germination_light')),
+            field('Bewurzelungsdauer', val(d,'rooting_days') ? d.rooting_days + ' Tage' : null),
+            field('Pflanzen/m²',       val(d,'plants_per_sqm')),
+        ]);
+
+        html += section('Verwendung', [
+            field('Pflanzenteile', val(d,'plant_parts')),
+            field('Zweck',         val(d,'usage_purpose')),
+            field('Verarbeitung',  val(d,'usage_processing')),
+            field('Lagerung',      val(d,'usage_storage')),
+        ]);
+
+        html += '</div>'; // sections
+
+        // --- VERFÜGBARKEIT ---
+        if (d.availability && d.availability.length > 0) {
+            html += '<hr class="pdb-portrait-divider">';
+            html += '<div style="margin-bottom:1rem">';
+            html += '<span style="font-size:0.72rem;color:#4B8223;display:block;margin-bottom:0.4rem">Erhältlich bei</span>';
+            d.availability.forEach(function(a) {
+                html += '<div style="font-size:0.92rem;margin-bottom:0.2rem">';
+                if (a.url) {
+                    html += '<a href="' + a.url + '" target="_blank" rel="noopener">' + a.name + '</a>';
+                } else {
+                    html += a.name;
+                }
+                html += '</div>';
+            });
+            html += '</div>';
+        }
+
+        // --- KATEGORIEN ---
+        if (d.categories && d.categories.length > 0) {
+            html += '<hr class="pdb-portrait-divider">';
+            html += '<div><span style="font-size:0.72rem;color:#4B8223">Kategorien</span>';
+            html += '<div class="pdb-portrait-tags" style="margin-top:0.4rem">';
+            d.categories.forEach(function(c) {
+                // Letzten Teil des Pfades anzeigen, vollen Pfad als title
+                var parts = c.split('/');
+                var label = parts[parts.length - 1];
+                html += '<span class="pdb-portrait-tag" title="' + c + '">' + label + '</span>';
+            });
+            html += '</div></div>';
+        }
+
+        // --- SYNONYME ---
+        if (d.synonyms && d.synonyms.length > 0) {
+            html += '<div style="margin-top:1rem"><span style="font-size:0.72rem;color:#4B8223">Synonyme</span>';
+            html += '<div class="pdb-portrait-tags" style="margin-top:0.4rem">';
+            d.synonyms.forEach(function(s) {
+                html += '<span class="pdb-portrait-tag">' + s.synonym_name + '</span>';
+            });
+            html += '</div></div>';
+        }
+
+        document.getElementById('pdb-portrait-content').innerHTML = html;
+        document.title = (d.botanical_name || 'Portrait') + ' — PDB';
+    }
+})();
+</script>
+{% endblock %}

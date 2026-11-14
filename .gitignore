@@ -1,52 +1,39 @@
-### 🛡️ SENSIBLE DATEN – NIEMALS TEILEN!
-# API-Schlüssel, Tokens, Passwörter
+# Betriebsdaten und Geheimnisse gehoeren nie ins Repository
+user/accounts/
+user/data/
+user/config/security*.php
+user/config/plugins/pdb-api.yaml
+user/config/versions.yaml
+user/**/*.db
+user/**/*.sqlite
+*.db-shm
+*.db-wal
 .env
 *.key
 secrets.yaml
-config/secrets.json
 
-# Home Assistant & Shelly Konfigurationen (lokal)
-.homeassistant/
-configuration.yaml
-
-### 🤖 KI-MODELLE & GROSSE DATEN (mehrere GB!)
-# Lokale LLM-Modelle (Ollama, LM Studio)
-models/
-*.gguf
-*.bin
-ollama/models/
-lm-studio/models/
-
-# Trainingsdaten, Logs, Checkpoints
-data/raw/
-data/processed/
+# Laufzeit, Sicherungen und lokale Hilfsdateien
+cache/
 logs/
-checkpoints/
-*.pth
-*.h5
+tmp/
+backup/
+nachpaket-*/
+*.vor-*
+*.bak
+*.orig
+test-accounts-lokal.txt
 
-### 🐍 PYTHON
-# Bytecode, virtuelle Umgebungen
+# Python (falls Skripte dazukommen)
 __pycache__/
 *.py[cod]
 venv/
 .venv/
-env/
 
-# Installierte Pakete (werden via requirements.txt neu installiert)
-site-packages/
-
-### 🔧 IDE & EDITOR
-# VS Code
+# Editor und System
 .vscode/
-!.vscode/settings.json.template
-!.vscode/tasks.json.template
-
-# PyCharm
 .idea/
 *.iml
-
-### 📁 SYSTEM
 .DS_Store
 Thumbs.db
+desktop.ini
 *.tmp

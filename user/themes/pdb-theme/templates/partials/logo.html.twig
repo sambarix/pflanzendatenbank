@@ -1,0 +1,12 @@
+{# pdb-theme: Logo als <img>. quark2 setzt SVGs inline und faerbt sie ein, so behalten sie ihre Farben.
+   Die Dateien kommen aus pdb-theme.yaml (custom_logo / custom_logo_mobile), im Admin austauschbar. #}
+{% set logo = theme_var(mobile ? 'custom_logo_mobile' : 'custom_logo') %}
+{% set logo_first = (logo is iterable and logo|length > 0) ? logo|first : null %}
+{% set logo_file = logo_first.name|default(null) %}
+<a href="{{ home_url }}" class="navbar-brand" aria-label="{{ site.title }}" title="{{ site.title }}">
+{% if logo_file %}
+    <img src="{{ url('theme://images/logo/' ~ logo_file) }}" alt="{{ site.title }}" />
+{% else %}
+    <span>{{ site.title }}</span>
+{% endif %}
+</a>

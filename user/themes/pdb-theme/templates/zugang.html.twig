@@ -1,0 +1,81 @@
+{% extends 'partials/base.html.twig' %}
+
+{% block content %}
+<div style="max-width:440px;margin:4rem auto;padding:0 1rem;font-family:'Liberation Sans',Arial,sans-serif">
+
+    <h2 style="font-size:1.3rem;font-weight:bold;color:#111;margin:0 0 0.5rem 0">
+        Gärtnerei registrieren
+    </h2>
+    <p style="font-size:0.9rem;color:#111;margin:0 0 2rem 0;line-height:1.6">
+        Die Registrierung ist für Bio Suisse zertifizierte Gärtnereien vorbehalten.
+        Geben Sie den Zugangscode ein, den Sie erhalten haben.
+    </p>
+
+    <div id="pdb-z-error"
+         style="display:none;padding:10px 14px;margin-bottom:1rem;border-radius:3px;
+                font-size:0.9rem;font-weight:bold;
+                background:#fce4ec;border:2px solid #c62828;color:#c62828">
+        Ungültiger Zugangscode.
+    </div>
+
+    <div style="margin-bottom:1rem">
+        <label style="font-size:0.8rem;color:#4B8223;display:block;margin-bottom:4px"
+               for="pdb-z-input">Zugangscode</label>
+        <input id="pdb-z-input" type="password" autocomplete="off"
+               style="width:100%;padding:8px 10px;font-size:1rem;
+                      border:1px solid #ccc;border-radius:3px;
+                      font-family:'Liberation Sans',Arial,sans-serif;color:#111"
+               onkeydown="if(event.key==='Enter')pdbZugang()">
+    </div>
+
+    <button onclick="pdbZugang()" id="pdb-z-btn"
+            style="padding:8px 20px;background:#4B8223;color:#fff;border:none;
+                   border-radius:3px;font-size:0.95rem;cursor:pointer;
+                   font-family:'Liberation Sans',Arial,sans-serif">
+        Weiter
+    </button>
+
+    <p style="margin-top:2rem;font-size:0.85rem">
+        Bereits registriert? <a href="{{ base_url_relative }}/login" style="color:#4B8223">Einloggen</a>
+    </p>
+
+</div>
+
+<script>
+function pdbZugang() {
+    var btn   = document.getElementById('pdb-z-btn');
+    var err   = document.getElementById('pdb-z-error');
+    var input = document.getElementById('pdb-z-input');
+    err.style.display = 'none';
+    btn.disabled = true;
+    btn.textContent = '…';
+
+    var data = new FormData();
+    data.append('passphrase', input.value);
+
+    fetch('{{ base_url_relative }}/pdb-api/passphrase', { method: 'POST', body: data })
+        .then(function(r) { return r.json(); })
+        .then(function(res) {
+            if (res.ok) {
+                window.location.href = '{{ base_url_relative }}/registrieren';
+            } else {
+                err.style.display = 'block';
+                input.value = '';
+                input.focus();
+                btn.disabled = false;
+                btn.textContent = 'Weiter';
+            }
+        })
+        .catch(function() {
+            err.style.display = 'block';
+            err.textContent = 'Verbindungsfehler. Bitte nochmals versuchen.';
+            btn.disabled = false;
+            btn.textContent = 'Weiter';
+        });
+}
+// Direkt auf das Feld fokussieren
+document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('pdb-z-input').focus();
+});
+</script>
+{% endblock %}

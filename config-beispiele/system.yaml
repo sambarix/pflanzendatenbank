@@ -1,0 +1,14 @@
+# Beispiel fuer user/config/system.yaml der Grav-Installation.
+# Diese Einstellungen in die bestehende Datei uebernehmen, nicht die ganze Datei ersetzen.
+
+home:
+  alias: '/home'                  # Startseite ist user/pages/01.home
+
+pages:
+  theme: pdb-theme                # Kind-Theme der PDB (erbt von quark2)
+
+assets:
+  enable_asset_timestamp: true    # CSS/JS mit Kennung, damit Browser nach Updates neu laden
+
+session:
+  lazy: true                      # Cookie erst bei Anmeldung oder Zugangscode, nicht fuer anonyme Besucher

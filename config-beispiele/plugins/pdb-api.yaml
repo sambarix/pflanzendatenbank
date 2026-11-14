@@ -1,0 +1,7 @@
+# Beispiel fuer user/config/plugins/pdb-api.yaml
+enabled: true
+
+# Zugangscode fuer die Registrierung, nur als Hash (nie den Klartext eintragen).
+# Hash erzeugen:   php -r "echo password_hash('IHR-CODE', PASSWORD_DEFAULT), PHP_EOL;"
+# Bleibt invite_hash leer, ist keine Registrierung moeglich.
+invite_hash: ''

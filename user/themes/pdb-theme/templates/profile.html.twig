@@ -1,0 +1,204 @@
+{% extends 'partials/base.html.twig' %}
+
+{% do form.setAllData(grav.user.toArray) %}
+
+{% block content %}
+    {% include 'partials/messages.html.twig' %}
+    {{ page.content|raw }}
+    {% include 'forms/form.html.twig' %}
+
+    {# ===== STANDORTE ===== #}
+    {% set dbPath = grav.user.get('db_path') %}
+    {% if dbPath and authorize('site.pdb_nursery') %}
+
+    <h2 style="font-size:1.3rem;font-weight:bold;margin:0 0 0.3rem">Standorte</h2>
+    <p style="font-size:0.88rem;color:#555;margin:0 0 1.5rem">
+        Verwalten Sie Ihre Standorte (max. 3 Ebenen: z.B. Gewächshaus → Tisch → Sektor).
+    </p>
+
+    <div id="pdb-st-msg" style="display:none;padding:8px 12px;border-radius:3px;font-size:0.88rem;margin-bottom:1rem"></div>
+    <div id="pdb-st-tree" style="margin-bottom:1rem"></div>
+
+    <button onclick="pdbStAddRoot()" class="btn btn-sm"
+            style="font-size:0.85rem;padding:4px 12px;border:1px solid #4B8223;
+                   background:#fff;color:#4B8223;border-radius:3px;cursor:pointer">
+        + Neuer Hauptstandort
+    </button>
+
+    <script>
+    var pdbStDb = '{{ dbPath }}';
+    var pdbStBase = '{{ base_url_relative }}/pdb-api/standorte?x=1';
+    var pdbStData = [];
+
+    function pdbStLoad() {
+        fetch(pdbStBase + '&action=list')
+            .then(function(r) { return r.json(); })
+            .then(function(d) { pdbStData = d; pdbStRender(); })
+            .catch(function() { pdbStMsg('Fehler beim Laden.', 'err'); });
+    }
+
+    function pdbStChildren(parentId) {
+        return pdbStData.filter(function(l) {
+            return parentId === null ? l.parent_id === null : l.parent_id == parentId;
+        });
+    }
+
+    function pdbStDepth(id) {
+        var d = 0, loc = pdbStData.find(function(l) { return l.id == id; });
+        while (loc && loc.parent_id !== null) {
+            loc = pdbStData.find(function(l) { return l.id == loc.parent_id; });
+            d++;
+        }
+        return d;
+    }
+
+    function pdbStRender() {
+        var roots = pdbStChildren(null);
+        if (!roots.length) {
+            document.getElementById('pdb-st-tree').innerHTML =
+                '<p style="font-size:0.88rem;color:#888">Noch keine Standorte angelegt.</p>';
+            return;
+        }
+        document.getElementById('pdb-st-tree').innerHTML = pdbStBuildHtml(roots, 0);
+    }
+
+    function pdbStBuildHtml(locs, depth) {
+        var html = '<ul style="list-style:none;padding:0;margin:0">';
+        locs.forEach(function(loc) {
+            var children = pdbStChildren(loc.id);
+            var indent = depth * 1.5;
+            var hasChildren = children.length > 0;
+            html += '<li style="margin:0;padding:2px 0 2px ' + indent + 'rem">';
+            html += '<div id="pdb-st-row-' + loc.id + '" style="display:flex;align-items:center;gap:6px;padding:3px 0">';
+            html += '<span style="color:#888;font-size:0.75rem">' + '—'.repeat(depth) + '</span>';
+            html += '<span id="pdb-st-name-' + loc.id + '" style="font-size:0.92rem;flex:1">' + pdbEsc(loc.name) + '</span>';
+            html += '<button onclick="pdbStRename(' + loc.id + ')" title="Umbenennen"'
+                  + ' style="font-size:0.75rem;padding:1px 7px;border:1px solid #ccc;'
+                  + 'background:#fff;border-radius:3px;cursor:pointer;color:#555">✏</button>';
+            if (depth < 2) {
+                html += '<button onclick="pdbStAddChild(' + loc.id + ')" title="Unterstandort hinzufügen"'
+                      + ' style="font-size:0.75rem;padding:1px 7px;border:1px solid #4B8223;'
+                      + 'background:#fff;border-radius:3px;cursor:pointer;color:#4B8223">+</button>';
+            }
+            if (depth > 0 || hasChildren === false) {
+                var canDel = !hasChildren;
+                html += '<button onclick="pdbStDelete(' + loc.id + ')" title="Löschen"'
+                      + ' style="font-size:0.75rem;padding:1px 7px;border:1px solid #c62828;'
+                      + 'background:#fff;border-radius:3px;cursor:pointer;color:#c62828'
+                      + (canDel ? '' : ';opacity:0.4') + '"'
+                      + (canDel ? '' : ' disabled') + '>✗</button>';
+            }
+            html += '<div id="pdb-st-form-' + loc.id + '" style="display:none"></div>';
+            html += '</div>';
+            if (hasChildren) html += pdbStBuildHtml(children, depth + 1);
+            html += '</li>';
+        });
+        html += '</ul>';
+        return html;
+    }
+
+    function pdbEsc(s) {
+        return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    function pdbStMsg(text, type) {
+        var el = document.getElementById('pdb-st-msg');
+        el.style.display = 'block';
+        el.style.cssText = type === 'err'
+            ? 'display:block;padding:8px 12px;border-radius:3px;font-size:0.88rem;margin-bottom:1rem;background:#fce4ec;border:1px solid #c62828;color:#c62828'
+            : 'display:block;padding:8px 12px;border-radius:3px;font-size:0.88rem;margin-bottom:1rem;background:#e8f5e9;border:1px solid #4B8223;color:#2e7d32';
+        el.textContent = text;
+        setTimeout(function() { el.style.display = 'none'; }, 3000);
+    }
+
+    function pdbStAddForm(containerId, parentId) {
+        var el = document.getElementById(containerId);
+        el.style.display = 'block';
+        el.innerHTML = '<div style="display:flex;gap:6px;margin-top:4px;align-items:center">'
+            + '<input id="pdb-st-new-name-' + containerId + '" type="text" placeholder="Name des Standorts"'
+            + ' style="padding:4px 8px;font-size:0.88rem;border:1px solid #ccc;border-radius:3px;flex:1">'
+            + '<button onclick="pdbStSaveNew(\'' + containerId + '\',' + (parentId !== null ? parentId : 'null') + ')"'
+            + ' style="font-size:0.8rem;padding:3px 10px;background:#4B8223;color:#fff;border:none;border-radius:3px;cursor:pointer">Speichern</button>'
+            + '<button onclick="document.getElementById(\'' + containerId + '\').style.display=\'none\'"'
+            + ' style="font-size:0.8rem;padding:3px 8px;background:#fff;border:1px solid #ccc;border-radius:3px;cursor:pointer">✗</button>'
+            + '</div>';
+        document.getElementById('pdb-st-new-name-' + containerId).focus();
+    }
+
+    function pdbStAddRoot() {
+        var rootForm = document.getElementById('pdb-st-root-form');
+        if (!rootForm) {
+            var div = document.createElement('div');
+            div.id = 'pdb-st-root-form';
+            document.getElementById('pdb-st-tree').after(div);
+            rootForm = div;
+        }
+        pdbStAddForm('pdb-st-root-form', null);
+    }
+
+    function pdbStAddChild(parentId) {
+        pdbStAddForm('pdb-st-form-' + parentId, parentId);
+    }
+
+    function pdbStSaveNew(containerId, parentId) {
+        var name = document.getElementById('pdb-st-new-name-' + containerId).value.trim();
+        if (!name) return;
+        var data = new FormData();
+        data.append('action', 'add');
+        data.append('name', name);
+        if (parentId !== null) data.append('parent_id', parentId);
+        fetch(pdbStBase, { method: 'POST', body: data })
+            .then(function(r) { return r.json(); })
+            .then(function(res) {
+                if (res.error) { pdbStMsg(res.error, 'err'); return; }
+                pdbStMsg('Standort angelegt.', 'ok');
+                pdbStLoad();
+            });
+    }
+
+    function pdbStRename(id) {
+        var nameEl = document.getElementById('pdb-st-name-' + id);
+        var current = nameEl.textContent;
+        nameEl.innerHTML = '<input id="pdb-st-ren-' + id + '" type="text" value="' + pdbEsc(current) + '"'
+            + ' style="padding:2px 6px;font-size:0.88rem;border:1px solid #ccc;border-radius:3px;width:12rem">'
+            + ' <button onclick="pdbStSaveRename(' + id + ')"'
+            + ' style="font-size:0.8rem;padding:2px 8px;background:#4B8223;color:#fff;border:none;border-radius:3px;cursor:pointer">✓</button>'
+            + ' <button onclick="pdbStLoad()"'
+            + ' style="font-size:0.8rem;padding:2px 6px;background:#fff;border:1px solid #ccc;border-radius:3px;cursor:pointer">✗</button>';
+        document.getElementById('pdb-st-ren-' + id).focus();
+    }
+
+    function pdbStSaveRename(id) {
+        var name = document.getElementById('pdb-st-ren-' + id).value.trim();
+        if (!name) return;
+        var data = new FormData();
+        data.append('action', 'rename');
+        data.append('id', id);
+        data.append('name', name);
+        fetch(pdbStBase, { method: 'POST', body: data })
+            .then(function(r) { return r.json(); })
+            .then(function(res) {
+                if (res.error) { pdbStMsg(res.error, 'err'); return; }
+                pdbStMsg('Umbenannt.', 'ok');
+                pdbStLoad();
+            });
+    }
+
+    function pdbStDelete(id) {
+        if (!confirm('Diesen Standort wirklich löschen?')) return;
+        var data = new FormData();
+        data.append('action', 'delete');
+        data.append('id', id);
+        fetch(pdbStBase, { method: 'POST', body: data })
+            .then(function(r) { return r.json(); })
+            .then(function(res) {
+                if (res.error) { pdbStMsg(res.error, 'err'); return; }
+                pdbStMsg('Gelöscht.', 'ok');
+                pdbStLoad();
+            });
+    }
+
+    document.addEventListener('DOMContentLoaded', pdbStLoad);
+    </script>
+    {% endif %}
+{% endblock %}

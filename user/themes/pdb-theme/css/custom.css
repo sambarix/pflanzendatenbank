@@ -1,0 +1,150 @@
+@font-face {
+    font-family: 'Liberation Sans';
+    src: url('../fonts/LiberationSans.woff2') format('woff2'),
+         url('../fonts/LiberationSans.woff') format('woff');
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Liberation Sans';
+    src: url('../fonts/LiberationSans-Bold.woff2') format('woff2'),
+         url('../fonts/LiberationSans-Bold.woff') format('woff');
+    font-weight: bold;
+    font-style: normal;
+    font-display: swap;
+}
+
+/* Hintergrundfarbe für den Header */
+#header {
+    background-color: #39A32D !important;
+}
+
+/* Schriftfarbe für Menüpunkte */
+.navbar a {
+    color: white !important;
+}
+
+/* Optional: Hover-Effekt */
+.navbar a:hover {
+    color: #f0f0f0 !important;
+}
+/* Hover-, Active- und Focus-Farbe für Menüpunkte */
+.dropmenu ul li a.active,
+.dropmenu ul li a:focus,
+.dropmenu ul li a:hover {
+    color: #ffc700 !important;
+}
+/* Schriftgröße für Menüpunkte */
+.navbar a,
+.dropmenu ul li a {
+    font-size: 1rem !important;
+}
+
+/* Linkfarbe Seiteninhalt: Terrakotta */
+a { color: #A0522D !important; }
+a:hover { color: #7A3A1A !important; }
+
+/* Hamburger-Icon: golden */
+.mobile-menu .button_container span { background: #ffc700 !important; }
+
+/* Footer / Impressum */
+#pdb-footer {
+    border-top: 1px solid #e0e0e0;
+    margin-top: 3rem;
+    padding: 1.2rem 1rem;
+    font-family: 'Liberation Sans', Arial, sans-serif;
+    font-size: 0.8rem;
+    color: #555;
+}
+
+.pdb-footer-inner {
+    max-width: 900px;
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.pdb-footer-impressum {
+    line-height: 1.6;
+}
+
+.pdb-footer-impressum strong {
+    color: #111;
+    font-weight: bold;
+}
+
+.pdb-footer-impressum a,
+.pdb-footer-meta a {
+    color: #4B8223;
+    text-decoration: none;
+}
+
+.pdb-footer-impressum a:hover,
+.pdb-footer-meta a:hover {
+    text-decoration: underline;
+}
+
+.pdb-footer-meta {
+    color: #888;
+    white-space: nowrap;
+}
+
+@media (max-width: 600px) {
+    .pdb-footer-inner {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+}
+
+/* Footer: quark2-#footer liefert Rand und Abstand, der innere Block nur noch den Inhalt */
+#footer #pdb-footer {
+    border-top: 0;
+    margin-top: 0;
+    padding: 0;
+}
+
+/* Logo: als <img>, Hoehe passend zur Kopfzeile */
+.navbar-brand img {
+    height: 40px;
+    width: auto;
+}
+
+/* Kopfzeile etwas breiter als der Inhalt und Menue kompakter, damit auch 8-9 Eintraege
+   neben dem Login-Status in eine Zeile passen */
+#header .container {
+    max-width: 1360px;
+}
+.dropmenu a {
+    padding-left: 0.5rem !important;
+    padding-right: 0.5rem !important;
+}
+.login-status {
+    font-size: 0.9rem;
+    white-space: nowrap;
+}
+@media (max-width: 1499px) {
+    .login-status-name {
+        display: none;
+    }
+}
+
+/* Mobil-Menue hat hellen Hintergrund: Logo (weisse Schrift) auf gruener Flaeche zeigen */
+.mobile-logo .navbar-brand {
+    background: #39A32D;
+    padding: 0.5rem 0.9rem;
+    border-radius: 8px;
+}
+
+/* Menue: aktive Seite in dunklem Gruen statt Schwarz, Hover leicht abgedunkelt */
+.dropmenu a.active,
+.dropmenu a.active:hover {
+    background: #1E6218 !important;
+}
+.dropmenu a:hover:not(.active) {
+    background: rgba(0, 0, 0, 0.14) !important;
+}

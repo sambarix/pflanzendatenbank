@@ -1,0 +1,626 @@
+/* ===== PDB EINGABE - Pflanzen-Eingabeformular ===== */
+
+.pdb-eingabe-container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 0 10px;
+    font-family: 'Liberation Sans', Arial, sans-serif;
+    color: #000;
+}
+
+.pdb-eingabe-title {
+    font-size: 22px;
+    font-weight: bold;
+    color: #4B8223;
+    margin: 0 0 16px 0;
+}
+
+/* --- Message bar --- */
+.pdb-message {
+    padding: 12px 16px;
+    border-radius: 4px;
+    margin-bottom: 16px;
+    font-size: 14px;
+    font-weight: bold;
+}
+.pdb-message-success {
+    background: #e8f5e9;
+    border: 2px solid #4B8223;
+    color: #2e7d32;
+}
+.pdb-message-error {
+    background: #fce4ec;
+    border: 2px solid #c62828;
+    color: #c62828;
+}
+
+/* === SECTIONS (Accordion) === */
+.pdb-section {
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    margin-bottom: 6px;
+    background: #fff;
+}
+
+.pdb-section-main {
+    border: 2px solid #4B8223;
+    margin-bottom: 12px;
+}
+
+/* --- Section Header --- */
+.pdb-section-header {
+    display: flex;
+    align-items: center;
+    padding: 10px 14px;
+    cursor: pointer;
+    user-select: none;
+    gap: 8px;
+    min-height: 44px;
+    box-sizing: border-box;
+}
+
+.pdb-section-header:hover {
+    background: #f0f4ec;
+}
+
+.pdb-section-header-main {
+    background: #4B8223;
+    color: #fff;
+    cursor: default;
+    border-radius: 3px 3px 0 0;
+}
+
+.pdb-section-header-main:hover {
+    background: #4B8223;
+}
+
+.pdb-section-arrow {
+    font-size: 12px;
+    transition: transform 0.15s;
+    width: 16px;
+    text-align: center;
+    flex-shrink: 0;
+}
+
+.pdb-section-open > .pdb-section-header .pdb-section-arrow {
+    transform: rotate(90deg);
+}
+
+.pdb-section-icon {
+    font-size: 18px;
+    flex-shrink: 0;
+}
+
+.pdb-section-title {
+    font-size: 15px;
+    font-weight: bold;
+    flex-shrink: 0;
+}
+
+.pdb-section-info {
+    font-size: 12px;
+    color: #666;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.pdb-section-header-main .pdb-section-info {
+    color: rgba(255,255,255,0.8);
+}
+
+.pdb-section-count {
+    font-size: 11px;
+    color: #999;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.pdb-section-header-main .pdb-section-count {
+    color: rgba(255,255,255,0.7);
+}
+
+.pdb-badge-required {
+    background: #fff;
+    color: #4B8223;
+    font-size: 11px;
+    font-weight: bold;
+    padding: 1px 6px;
+    border-radius: 3px;
+}
+.pdb-badge-public {
+    background: #e8f4e0;
+    color: #4B8223;
+    font-size: 10px;
+    font-weight: normal;
+    padding: 1px 5px;
+    border-radius: 3px;
+    margin-left: 4px;
+}
+
+/* Green dot = section has data */
+.pdb-section-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    display: none;
+}
+.pdb-section-dot.pdb-has-data {
+    display: block;
+    background: #4B8223;
+}
+
+/* --- Section Body --- */
+.pdb-section-body {
+    display: none;
+    padding: 12px 14px;
+    border-top: 1px solid #e0e0e0;
+}
+
+.pdb-section-open > .pdb-section-body {
+    display: block;
+}
+
+/* === FIELDS === */
+.pdb-field {
+    margin-bottom: 10px;
+}
+
+.pdb-field label {
+    display: block;
+    font-size: 13px;
+    font-weight: bold;
+    color: #000;
+    margin-bottom: 3px;
+}
+
+.pdb-field input[type="text"],
+.pdb-field input[type="number"],
+.pdb-field select,
+.pdb-field textarea {
+    width: 100%;
+    padding: 8px 10px;
+    font-size: 14px;
+    font-family: 'Liberation Sans', Arial, sans-serif;
+    color: #000;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+    background: #fff;
+    box-sizing: border-box;
+}
+
+.pdb-field input:focus,
+.pdb-field select:focus,
+.pdb-field textarea:focus {
+    outline: none;
+    border-color: #4B8223;
+    box-shadow: 0 0 0 2px rgba(75, 130, 35, 0.15);
+}
+
+.pdb-field textarea {
+    resize: vertical;
+}
+
+.pdb-required {
+    color: #c62828;
+    font-weight: bold;
+}
+
+/* --- Field Row (grid) --- */
+.pdb-field-row {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 2px;
+}
+
+.pdb-field-half { flex: 1 1 50%; min-width: 0; }
+.pdb-field-third { flex: 1 1 33%; min-width: 0; }
+.pdb-field-quarter { flex: 1 1 25%; min-width: 0; }
+
+/* --- Preview Box --- */
+.pdb-preview-box {
+    background: #f5f7f3;
+    border: 1px solid #d4dccf;
+    border-radius: 4px;
+    padding: 10px 14px;
+    margin-bottom: 10px;
+}
+
+.pdb-preview-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 2px;
+    font-size: 13px;
+}
+
+.pdb-preview-label {
+    color: #666;
+    min-width: 120px;
+    flex-shrink: 0;
+}
+
+.pdb-preview-value {
+    color: #000;
+    font-weight: bold;
+    word-break: break-all;
+}
+
+.pdb-botanical-name {
+    color: #3a6a1b;
+    font-size: 15px;
+}
+
+/* Duplicate status */
+.pdb-duplicate-ok {
+    color: #4B8223;
+    font-size: 13px;
+    font-weight: bold;
+    margin-top: 6px;
+}
+
+.pdb-duplicate-error {
+    color: #c62828;
+    font-size: 13px;
+    font-weight: bold;
+    margin-top: 6px;
+}
+
+.pdb-duplicate-checking {
+    color: #999;
+    font-size: 13px;
+    margin-top: 6px;
+}
+
+/* --- Month checkboxes --- */
+.pdb-months {
+    display: flex;
+    gap: 2px;
+    flex-wrap: wrap;
+}
+
+.pdb-month {
+    display: inline-flex !important;
+    align-items: center;
+    gap: 2px;
+    font-size: 13px !important;
+    font-weight: normal !important;
+    padding: 4px 6px;
+    border: 1px solid #ddd;
+    border-radius: 3px;
+    cursor: pointer;
+    min-width: 36px;
+    min-height: 36px;
+    justify-content: center;
+    user-select: none;
+    margin-bottom: 0 !important;
+}
+
+.pdb-month:hover {
+    background: #f0f4ec;
+    border-color: #4B8223;
+}
+
+.pdb-month input:checked + * {
+    color: #4B8223;
+}
+
+/* Inline checkboxes */
+.pdb-checkboxes-inline {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    justify-content: flex-end;
+}
+
+.pdb-checkboxes-inline label {
+    font-weight: normal !important;
+    font-size: 13px !important;
+    display: flex !important;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+}
+
+/* --- Multi-row (Categories, Synonyms) --- */
+.pdb-multi-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 6px;
+}
+
+.pdb-multi-row select,
+.pdb-multi-row input {
+    padding: 8px 10px;
+    font-size: 14px;
+    font-family: 'Liberation Sans', Arial, sans-serif;
+    color: #000;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+    box-sizing: border-box;
+}
+
+.pdb-category-select {
+    flex: 1;
+}
+
+.pdb-syn-name { flex: 2; }
+.pdb-syn-lang { flex: 0 0 80px; }
+.pdb-syn-type { flex: 0 0 120px; }
+
+.pdb-btn-remove {
+    width: 36px;
+    height: 36px;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+    background: #fff;
+    color: #c62828;
+    font-size: 16px;
+    cursor: pointer;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.pdb-btn-remove:hover {
+    background: #fce4ec;
+    border-color: #c62828;
+}
+
+.pdb-btn-add {
+    padding: 6px 14px;
+    font-size: 13px;
+    font-family: 'Liberation Sans', Arial, sans-serif;
+    font-weight: bold;
+    border: 1px dashed #4B8223;
+    border-radius: 3px;
+    background: #fff;
+    color: #4B8223;
+    cursor: pointer;
+    margin-top: 4px;
+}
+
+.pdb-btn-add:hover {
+    background: #f0f4ec;
+}
+
+/* --- Autocomplete dropdown --- */
+.pdb-autocomplete {
+    position: absolute;
+    z-index: 100;
+    background: #fff;
+    border: 1px solid #ccc;
+    border-top: none;
+    border-radius: 0 0 3px 3px;
+    max-height: 200px;
+    overflow-y: auto;
+    width: calc(100% - 2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.pdb-autocomplete div {
+    padding: 8px 10px;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.pdb-autocomplete div:hover,
+.pdb-autocomplete div.pdb-ac-active {
+    background: #f0f4ec;
+    color: #4B8223;
+}
+
+/* Autocomplete wrapper */
+.pdb-field {
+    position: relative;
+}
+
+/* --- Save Button --- */
+.pdb-save-bar {
+    margin: 20px 0 40px 0;
+    text-align: center;
+}
+
+.pdb-btn-save {
+    padding: 14px 48px;
+    font-size: 18px;
+    font-family: 'Liberation Sans', Arial, sans-serif;
+    font-weight: bold;
+    border: 2px solid #4B8223;
+    border-radius: 4px;
+    background: #4B8223;
+    color: #fff;
+    cursor: pointer;
+    min-height: 50px;
+}
+
+.pdb-btn-save:hover {
+    background: #3a6a1b;
+    border-color: #3a6a1b;
+}
+
+.pdb-btn-save:disabled {
+    background: #999;
+    border-color: #999;
+    cursor: not-allowed;
+}
+
+/* === RESPONSIVE === */
+
+@media (max-width: 768px) {
+    .pdb-field-row {
+        flex-direction: column;
+        gap: 0;
+    }
+
+    .pdb-field-half,
+    .pdb-field-third,
+    .pdb-field-quarter {
+        flex: 1 1 100%;
+    }
+
+    .pdb-section-info {
+        display: none;
+    }
+
+    .pdb-section-header {
+        padding: 8px 10px;
+    }
+
+    .pdb-section-body {
+        padding: 10px;
+    }
+
+    .pdb-preview-row {
+        flex-direction: column;
+        gap: 0;
+    }
+
+    .pdb-preview-label {
+        min-width: unset;
+        font-size: 11px;
+    }
+
+    .pdb-synonym-row {
+        flex-wrap: wrap;
+    }
+
+    .pdb-syn-name { flex: 1 1 100%; }
+    .pdb-syn-lang { flex: 1 1 40%; }
+    .pdb-syn-type { flex: 1 1 40%; }
+
+    .pdb-btn-save {
+        width: 100%;
+        font-size: 16px;
+        padding: 12px 20px;
+    }
+
+    .pdb-eingabe-title {
+        font-size: 18px;
+    }
+}
+
+/* Edit Button in Liste */
+.pdb-edit-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    font-size: 13px;
+    color: #4a9c59;
+    text-decoration: none;
+    opacity: 0.6;
+    transition: opacity 0.15s;
+    vertical-align: middle;
+}
+.pdb-edit-btn:hover {
+    opacity: 1;
+    color: #2d7a3a;
+}
+
+/* Speichern-Button im Edit-Modus */
+.pdb-btn-save.pdb-btn-edit {
+    background: #2563eb;
+}
+.pdb-btn-save.pdb-btn-edit:hover {
+    background: #1d4ed8;
+}
+
+/* Multi-Select Dropdown */
+.pdb-multiselect {
+    position: relative;
+}
+
+.pdb-multiselect-trigger {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    background: #fff;
+    cursor: pointer;
+    font-size: 14px;
+    min-height: 34px;
+    user-select: none;
+}
+
+.pdb-multiselect-trigger:hover {
+    border-color: #4a9c59;
+}
+
+.pdb-multiselect-trigger.pdb-ms-open {
+    border-color: #4a9c59;
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+}
+
+.pdb-multiselect-label {
+    flex: 1;
+    color: #333;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.pdb-multiselect-label.pdb-ms-placeholder {
+    color: #999;
+}
+
+.pdb-multiselect-arrow {
+    font-size: 10px;
+    color: #666;
+    transition: transform 0.15s;
+    margin-left: 6px;
+}
+
+.pdb-ms-open .pdb-multiselect-arrow {
+    transform: rotate(90deg);
+}
+
+.pdb-multiselect-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    border: 1px solid #4a9c59;
+    border-top: none;
+    background: #fff;
+    border-bottom-left-radius: 4px;
+    border-bottom-right-radius: 4px;
+    z-index: 100;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    max-height: 240px;
+    overflow-y: auto;
+}
+
+.pdb-multiselect-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 10px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background 0.1s;
+}
+
+.pdb-multiselect-option:hover {
+    background: #f0faf2;
+}
+
+.pdb-multiselect-option:has(input:checked) {
+    background: #e0f4e5;
+    font-weight: 500;
+    color: #2d7a3a;
+}
+
+.pdb-multiselect-option input[type="checkbox"] {
+    accent-color: #4a9c59;
+    cursor: pointer;
+    margin: 0;
+}

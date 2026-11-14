@@ -1,0 +1,12 @@
+{# pdb-theme: wie quark2. Zusatz: "Abmelden" nur im Mobil-Menue (tree), weil der Login-Status mit Abmelden-Link
+   in der Kopfzeile nur auf dem Desktop sichtbar ist. #}
+{% import 'macros/macros.html.twig' as macros %}
+
+<ul {{ tree ? 'class="tree navigation"' : 'class="navigation"' }}>
+    {{ macros.nav_loop(pages) }}
+    {% if tree and grav.user.authenticated and authorize('site.login') %}
+    <li>
+        <a href="{{ uri.addNonce(base_url_relative ~ '/login/task' ~ config.system.param_sep ~ 'login.logout', 'logout-form', 'logout-nonce')|e }}">Abmelden</a>
+    </li>
+    {% endif %}
+</ul>

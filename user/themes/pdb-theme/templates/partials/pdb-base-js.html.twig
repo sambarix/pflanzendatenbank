@@ -1,0 +1,3 @@
+{# Setzt window.PDB_BASE_URL fuer alle statischen .js-Dateien (die kein Twig durchlaufen). #}
+{# Von jeder PDB-Seite im javascripts-Block VOR den page-spezifischen JS-Dateien einbinden. #}
+<script>window.PDB_BASE_URL = '{{ base_url }}';</script>

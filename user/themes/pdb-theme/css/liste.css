@@ -1,0 +1,402 @@
+/* ===== PDB LISTE - Pflanzenliste Styles ===== */
+
+/* --- Container --- */
+.pdb-liste-container {
+    max-width: 100%;
+    padding: 0;
+    font-family: 'Liberation Sans', Arial, sans-serif;
+    color: #000;
+}
+
+/* --- Toolbar --- */
+.pdb-toolbar {
+    margin-bottom: 12px;
+}
+
+.pdb-search-box {
+    margin-bottom: 8px;
+}
+
+.pdb-search-box input[type="search"] {
+    width: 100%;
+    padding: 10px 14px;
+    font-size: 15px;
+    font-family: 'Liberation Sans', Arial, sans-serif;
+    border: 2px solid #4B8223;
+    border-radius: 4px;
+    color: #000;
+    background: #fff;
+    box-sizing: border-box;
+}
+
+.pdb-search-box input[type="search"]:focus {
+    outline: none;
+    border-color: #3a6a1b;
+    box-shadow: 0 0 0 2px rgba(75, 130, 35, 0.2);
+}
+
+.pdb-search-box input[type="search"]::placeholder {
+    color: #666;
+}
+
+/* --- Controls Row --- */
+.pdb-controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+}
+
+.pdb-control-group {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.pdb-control-group label {
+    font-size: 13px;
+    font-weight: bold;
+    color: #000;
+    white-space: nowrap;
+}
+
+.pdb-control-group select {
+    padding: 5px 8px;
+    font-size: 13px;
+    font-family: 'Liberation Sans', Arial, sans-serif;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+    color: #000;
+    background: #fff;
+}
+
+/* --- Buttons --- */
+.pdb-btn {
+    padding: 5px 12px;
+    font-size: 13px;
+    font-family: 'Liberation Sans', Arial, sans-serif;
+    font-weight: bold;
+    border: 2px solid #4B8223;
+    border-radius: 3px;
+    background: #4B8223;
+    color: #fff;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.pdb-btn:hover {
+    background: #3a6a1b;
+    border-color: #3a6a1b;
+}
+
+.pdb-btn-secondary {
+    background: #fff;
+    color: #4B8223;
+}
+
+.pdb-btn-secondary:hover {
+    background: #f0f4ec;
+}
+
+.pdb-btn-columns {
+    position: relative;
+}
+
+/* --- Result Info --- */
+.pdb-result-info {
+    font-size: 13px;
+    color: #000;
+    margin-left: auto;
+    white-space: nowrap;
+    font-weight: bold;
+}
+
+/* --- Column Picker --- */
+.pdb-column-picker {
+    background: #fff;
+    border: 2px solid #4B8223;
+    border-radius: 4px;
+    padding: 12px;
+    margin-bottom: 12px;
+}
+
+.pdb-column-picker-inner {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 12px;
+}
+
+.pdb-col-group strong {
+    display: block;
+    font-size: 13px;
+    color: #4B8223;
+    margin-bottom: 4px;
+    border-bottom: 1px solid #e0e0e0;
+    padding-bottom: 2px;
+}
+
+.pdb-col-group label {
+    display: block;
+    font-size: 13px;
+    color: #000;
+    padding: 2px 0;
+    cursor: pointer;
+}
+
+.pdb-col-group label:hover {
+    background: #f0f4ec;
+}
+
+.pdb-col-group input[type="checkbox"] {
+    margin-right: 4px;
+    vertical-align: middle;
+}
+
+.pdb-column-picker-actions {
+    margin-top: 10px;
+    display: flex;
+    gap: 8px;
+}
+
+/* --- Table Wrapper --- */
+.pdb-table-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+/* --- Table --- */
+.pdb-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    color: #000;
+    table-layout: auto;
+}
+
+.pdb-table thead th {
+    background: #4B8223;
+    color: #fff;
+    font-weight: bold;
+    font-size: 13px;
+    padding: 8px 10px;
+    text-align: left;
+    white-space: nowrap;
+    cursor: pointer;
+    user-select: none;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    border-bottom: 2px solid #3a6a1b;
+}
+
+.pdb-table thead th:hover {
+    background: #3a6a1b;
+}
+
+.pdb-table thead th.pdb-col-botanical {
+    min-width: 220px;
+}
+
+.pdb-table tbody tr {
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.pdb-table tbody tr:nth-child(even) {
+    background: #f8f9fa;
+}
+
+.pdb-table tbody tr:hover {
+    background: #f0f4ec;
+}
+
+.pdb-table tbody td {
+    padding: 6px 10px;
+    color: #000;
+    font-size: 13px;
+    vertical-align: top;
+}
+
+/* Botanical name column */
+.pdb-cell-botanical {
+    font-weight: bold;
+}
+
+.pdb-cell-botanical a {
+    color: #3a6a1b;
+    text-decoration: none;
+}
+
+.pdb-cell-botanical a:hover {
+    color: #4B8223;
+    text-decoration: underline;
+}
+
+/* No results */
+.pdb-no-results {
+    text-align: center;
+    padding: 20px !important;
+    font-size: 14px;
+    color: #666;
+}
+
+/* --- Pagination --- */
+.pdb-pagination-bar {
+    margin-top: 12px;
+    display: flex;
+    justify-content: center;
+}
+
+.pdb-pagination-nav {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+}
+
+.pdb-page-btn {
+    min-width: 36px;
+    height: 36px;
+    padding: 4px 8px;
+    font-size: 13px;
+    font-family: 'Liberation Sans', Arial, sans-serif;
+    font-weight: bold;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+    background: #fff;
+    color: #000;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.pdb-page-btn:hover:not(:disabled):not(.pdb-page-active) {
+    background: #f0f4ec;
+    border-color: #4B8223;
+}
+
+.pdb-page-btn:disabled {
+    opacity: 0.4;
+    cursor: default;
+}
+
+.pdb-page-active {
+    background: #4B8223;
+    color: #fff;
+    border-color: #4B8223;
+}
+
+.pdb-page-dots {
+    padding: 0 4px;
+    color: #666;
+}
+
+/* --- HTMX Loading Indicator --- */
+.htmx-request .pdb-table tbody {
+    opacity: 0.5;
+}
+
+.htmx-indicator {
+    display: none;
+}
+
+.htmx-request .htmx-indicator {
+    display: inline;
+}
+
+/* --- Responsive --- */
+
+/* Tablet */
+@media (max-width: 992px) {
+    .pdb-controls {
+        gap: 8px;
+    }
+
+    .pdb-control-group label {
+        font-size: 12px;
+    }
+
+    .pdb-control-group select {
+        font-size: 12px;
+    }
+
+    .pdb-column-picker-inner {
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    }
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+    .pdb-controls {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 6px;
+    }
+
+    .pdb-control-group {
+        justify-content: space-between;
+    }
+
+    .pdb-control-group select {
+        flex: 1;
+        max-width: 200px;
+    }
+
+    .pdb-result-info {
+        margin-left: 0;
+        text-align: center;
+    }
+
+    .pdb-table {
+        font-size: 12px;
+    }
+
+    .pdb-table thead th {
+        font-size: 12px;
+        padding: 6px 6px;
+    }
+
+    .pdb-table tbody td {
+        padding: 5px 6px;
+        font-size: 12px;
+    }
+
+    .pdb-page-btn {
+        min-width: 32px;
+        height: 32px;
+        font-size: 12px;
+    }
+
+    .pdb-column-picker-inner {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .pdb-search-box input[type="search"] {
+        font-size: 14px;
+        padding: 8px 10px;
+    }
+}
+
+/* Small mobile */
+@media (max-width: 480px) {
+    .pdb-column-picker-inner {
+        grid-template-columns: 1fr;
+    }
+}
+
+
+/* --- Bearbeiten-Stift vor dem Pflanzennamen (SVG, schriftunabhaengig) --- */
+.pdb-cell-botanical a.pdb-edit-btn {
+    display: inline-flex;
+    align-items: center;
+    margin-right: 4px;
+    vertical-align: middle;
+    color: #4B8223 !important;
+    text-decoration: none;
+}
+.pdb-cell-botanical a.pdb-edit-btn:hover {
+    color: #3a6a1b !important;
+    text-decoration: none;
+}
+.pdb-edit-icon { display: block; }

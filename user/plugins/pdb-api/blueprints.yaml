@@ -1,0 +1,21 @@
+name: PDB API
+slug: pdb-api
+type: plugin
+version: 1.0.0
+description: 'Routet die PDB-eigenen Daten-Endpunkte (Liste, Kategorien, Bestand, ...) sauber ueber Gravs eigenen Request-Zyklus, ohne direkt per HTTP aufrufbare PHP-Dateien unter user/.'
+icon: leaf
+author:
+  name: oMioBio - Peter Mueller
+  email: pm@omiobio.ch
+homepage: https://github.com/sambarix/pflanzendatenbank
+license: MIT
+dependencies:
+  - { name: grav, version: '>=2.0.0' }
+
+form:
+  validation: loose
+  fields:
+    enabled:
+      type: toggle
+      label: Enabled
+      default: true

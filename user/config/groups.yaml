@@ -1,0 +1,20 @@
+editor:
+  readableName: 'PDB Editor'
+  description: 'Darf die oeffentlichen Stammdaten (plants.db) bearbeiten. Kein Zugang zum Backend.'
+  access:
+    site:
+      login: true
+      pdb_editor: true
+user:
+  readableName: 'PDB Gaertnerei'
+  description: 'Registrierte Gaertnerei mit eigener Datenbank. Darf die Stammdaten nicht bearbeiten.'
+  access:
+    site:
+      login: true
+      pdb_nursery: true
+planer:
+  readableName: 'PDB Planer'
+  description: 'Gartenplaner oder Gartenbau ohne eigenen Bestand. Darf Anfragelisten erstellen, kein Bestand/Export.'
+  access:
+    site:
+      login: true

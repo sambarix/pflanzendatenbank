@@ -1,0 +1,539 @@
+{% extends 'partials/base.html.twig' %}
+
+{% block stylesheets %}
+    {{ parent() }}
+    {% do assets.addCss('theme://css/liste.css') %}
+    {% do assets.addCss('theme://css/bestand.css') %}
+{% endblock %}
+
+{% block javascripts %}
+    {{ parent() }}
+    {% do assets.addJs('theme://js/vendor/htmx.2.0.4.min.js', {group: 'bottom'}) %}
+{% endblock %}
+
+{% block content %}
+{% set db_path = grav.user.get('db_path') %}
+
+{% if not db_path %}
+<div class="container grid-md">
+    <div class="toast toast-error">
+        Kein Gärtnerei-Konto gefunden. Bitte zuerst <a href="{{ base_url_relative }}/registrieren">registrieren</a>.
+    </div>
+</div>
+{% else %}
+
+<script>
+var pdbDbPath     = '{{ db_path|e('js') }}';
+var pdbApiBase    = '{{ base_url_relative }}/pdb-api/bestand?x=1';
+var pdbListUrl    = '{{ base_url_relative }}/pdb-api/bestand?action=list';
+
+function pdbReloadList() {
+    htmx.ajax('GET', pdbListUrl, { target: '#pdb-bestand-table', swap: 'innerHTML' });
+}
+</script>
+
+<div class="pdb-liste-container pdb-bestand-container">
+
+    {# === TOOLBAR: Suche zum Aufnehmen + Anzahl === #}
+    <div class="pdb-toolbar">
+        <div class="pdb-search-box">
+            <input type="search"
+                   id="pdb-search-input"
+                   name="term"
+                   placeholder="Pflanze zum Sortiment hinzufügen: Suche (bot. Name, dt. Name, Gattung)..."
+                   autocomplete="off"
+                   hx-get="{{ base_url_relative }}/pdb-api/bestand?action=search"
+                   hx-trigger="input changed delay:300ms, search"
+                   hx-target="#pdb-search-results">
+        </div>
+        <div id="pdb-search-results" class="pdb-search-results"></div>
+        <div id="pdb-aufnehmen-bar" class="pdb-aufnehmen-bar" style="display:none">
+            <button type="button" class="pdb-btn" onclick="pdbAufnehmen()">
+                Ausgewählte aufnehmen (<span id="pdb-selected-count">0</span>)
+            </button>
+            <button type="button" class="pdb-btn pdb-btn-secondary" onclick="pdbSearchClear()">Abbrechen</button>
+        </div>
+        <div id="pdb-aufnehmen-msg" class="pdb-bestand-msg" style="display:none"></div>
+        <div class="pdb-controls">
+            <div class="pdb-result-info"><span id="pdb-result-count">Laden...</span></div>
+        </div>
+    </div>
+
+    {# ============================================================ #}
+    {# BEARBEITEN-PANEL                                             #}
+    {# ============================================================ #}
+    <div id="pdb-edit-panel" class="pdb-edit-panel" style="display:none">
+        <div class="pdb-edit-header">
+            <strong id="pdb-edit-title">Pflanze bearbeiten</strong>
+            <button type="button" class="pdb-btn pdb-btn-secondary" onclick="pdbEditClose()">Schliessen</button>
+        </div>
+        <input type="hidden" id="pdb-edit-inv-id">
+        <div class="columns">
+            <div class="column col-3 col-sm-6">
+                <div class="form-group">
+                    <label class="form-label">Topfgrösse</label>
+                    <select class="form-select" id="pdb-edit-pot">
+                        <option value="">— kein Topf —</option>
+                        <optgroup label="T-Topf (rund)">
+                            <option>T9</option><option>T10</option><option>T11</option>
+                            <option>T12</option><option>T13</option><option>T14</option><option>T15</option>
+                        </optgroup>
+                        <optgroup label="TV-Topf (viereckig)">
+                            <option>TV9</option><option>TV10</option><option>TV11</option>
+                            <option>TV12</option><option>TV13</option><option>TV14</option><option>TV15</option>
+                        </optgroup>
+                        <optgroup label="Container">
+                            <option>C1</option><option>C2</option><option>C3</option><option>C5</option>
+                            <option>C7</option><option>C10</option><option>C15</option><option>C20</option><option>C30</option>
+                        </optgroup>
+                        <optgroup label="Sonderfall">
+                            <option>Wurzelnackt</option><option>Ballen</option><option>Drahtballen</option>
+                        </optgroup>
+                        <optgroup label="Multitopfplatten">
+                            <option>MT24</option><option>MT35</option><option>MT40</option>
+                            <option>MT48</option><option>MT54</option><option>MT66</option>
+                            <option>MT77</option><option>MT84</option><option>MT96</option>
+                            <option>MT104</option><option>MT150</option>
+                        </optgroup>
+                    </select>
+                </div>
+            </div>
+            <div class="column col-2 col-sm-6">
+                <div class="form-group">
+                    <label class="form-label">Anzahl</label>
+                    <input class="form-input" type="number" id="pdb-edit-qty" min="0" placeholder="—">
+                </div>
+            </div>
+            <div class="column col-3 col-sm-6">
+                <div class="form-group">
+                    <label class="form-label">Status</label>
+                    <select class="form-select" id="pdb-edit-status">
+                        <option value="im_sortiment">Im Sortiment</option>
+                        <option value="in_kultur">In Kultur</option>
+                        <option value="verkaufsfertig">Verkaufsfertig</option>
+                        <option value="bestellt">Bestellt</option>
+                        <option value="ausverkauft">Ausverkauft</option>
+                    </select>
+                </div>
+            </div>
+            <div class="column col-2 col-sm-6">
+                <div class="form-group">
+                    <label class="form-label">Preis CHF</label>
+                    <input class="form-input" type="number" id="pdb-edit-price" min="0" step="0.01" placeholder="—">
+                </div>
+            </div>
+        </div>
+        <div class="columns">
+            <div class="column col-2 col-sm-4">
+                <div class="form-group">
+                    <label class="form-label">Lieferwoche</label>
+                    <input class="form-input" type="number" id="pdb-edit-week" min="1" max="52" placeholder="KW">
+                </div>
+            </div>
+            <div class="column col-2 col-sm-4">
+                <div class="form-group">
+                    <label class="form-label">Jahr</label>
+                    <input class="form-input" type="number" id="pdb-edit-year"
+                           placeholder="2026" min="{{ "now"|date("Y") }}">
+                </div>
+            </div>
+            <div class="column col-4 col-sm-12">
+                <div class="form-group">
+                    <label class="form-label">Standort</label>
+                    <select class="form-select" id="pdb-loc-1" onchange="pdbLocCascade(1)">
+                        <option value="">— Standort wählen —</option>
+                    </select>
+                    <select class="form-select" id="pdb-loc-2" onchange="pdbLocCascade(2)"
+                            style="display:none;margin-top:4px">
+                        <option value="">(alle)</option>
+                    </select>
+                    <select class="form-select" id="pdb-loc-3" onchange="pdbLocCascade(3)"
+                            style="display:none;margin-top:4px">
+                        <option value="">(alle)</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+        <div class="form-group" style="margin-bottom:0.8rem">
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:0.92rem">
+                <input type="checkbox" id="pdb-edit-ispublic" style="width:16px;height:16px;cursor:pointer">
+                <span>Öffentlich sichtbar — Pflanze wird im Portrait als verfügbar gezeigt</span>
+            </label>
+        </div>
+
+        {# ---- oXs-Sektion ---- #}
+        <div class="pdb-oxs-section">
+            <div class="pdb-oxs-header">organicXseeds (oXs)</div>
+            <div class="columns">
+                <div class="column col-3 col-sm-6">
+                    <div class="form-group">
+                        <label class="form-label">Handelsform</label>
+                        <select class="form-select" id="pdb-edit-oxs-offer-type">
+                            <option value="">— nicht gesetzt —</option>
+                            <option value="JP">Jungpflanze (JP)</option>
+                            <option value="VM">Vermehrungsmaterial (VM)</option>
+                            <option value="HF">Halbfertigpflanze (HF)</option>
+                            <option value="FP">Fertigpflanze (FP)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="column col-3 col-sm-6">
+                    <div class="form-group">
+                        <label class="form-label">Vermehrungsart</label>
+                        <select class="form-select" id="pdb-edit-oxs-prop-method">
+                            <option value="">— nicht gesetzt —</option>
+                            <option value="generativ">generativ</option>
+                            <option value="vegetativ">vegetativ</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="column col-3 col-sm-6">
+                    <div class="form-group">
+                        <label class="form-label">Herkunftstyp</label>
+                        <select class="form-select" id="pdb-edit-oxs-source"
+                                onchange="pdbOxsSourceChanged()">
+                            <option value="">— nicht gesetzt —</option>
+                            <option value="Sorte">Sorte</option>
+                            <option value="Ökotyp">Ökotyp</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="column col-3 col-sm-6">
+                    <div class="form-group">
+                        <label class="form-label">Ausgangsmaterial</label>
+                        <select class="form-select" id="pdb-edit-oxs-source-bio">
+                            <option value="">— nicht gesetzt —</option>
+                            <option value="bio">bio</option>
+                            <option value="umstellung">Umstellung</option>
+                            <option value="nicht-bio">nicht-bio</option>
+                            <option value="wildgesammelt">wildgesammelt</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div id="pdb-oxs-oekotyp-fields" style="display:none">
+                <div class="form-group">
+                    <label class="form-label">
+                        Herkunftsnachweis <span style="color:#c00" title="Pflichtfeld bei Ökotyp">*</span>
+                    </label>
+                    <input class="form-input" type="text" id="pdb-edit-oxs-source-origin"
+                           placeholder="z.B. «Wildsammlung Jura 2019» oder «Von Gärtnerei Hüsler, Zullwil»">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Geografische Region (optional)</label>
+                    <input class="form-input" type="text" id="pdb-edit-oxs-geo-origin"
+                           placeholder="z.B. «Jura, Kanton Solothurn»">
+                </div>
+            </div>
+            <div class="columns">
+                <div class="column col-4 col-sm-6">
+                    <div class="form-group">
+                        <label class="form-label">Angebotsstatus (oXs)</label>
+                        <select class="form-select" id="pdb-edit-oxs-offer-bio">
+                            <option value="">— nicht gesetzt —</option>
+                            <option value="bio">bio</option>
+                            <option value="umstellung">Umstellung</option>
+                            <option value="nicht-bio">nicht-bio</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="column col-4 col-sm-6">
+                    <div class="form-group" style="padding-top:1.6rem">
+                        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:0.92rem">
+                            <input type="checkbox" id="pdb-edit-oxs-publish"
+                                   style="width:16px;height:16px;cursor:pointer">
+                            <span>Nach oXs exportieren</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>{# end oXs-Sektion #}
+
+        <div class="form-group">
+            <label class="form-label">Notiz</label>
+            <input class="form-input" type="text" id="pdb-edit-notes" placeholder="Interne Notiz (optional)">
+        </div>
+        <div id="pdb-edit-msg" style="display:none;margin-bottom:8px"></div>
+        <button type="button" class="pdb-btn" onclick="pdbEditSave()">Speichern</button>
+        <button type="button" class="pdb-btn pdb-btn-secondary" onclick="pdbEditClose()">Abbrechen</button>
+    </div>
+
+    {# === TABLE === #}
+    <div class="pdb-table-wrapper">
+        <table class="pdb-table pdb-table-bestand" id="pdb-bestand-table"
+               hx-get="{{ base_url_relative }}/pdb-api/bestand?action=list"
+               hx-trigger="load"
+               hx-swap="innerHTML">
+            <thead><tr><th>Laden...</th></tr></thead>
+            <tbody><tr><td>Daten werden geladen...</td></tr></tbody>
+        </table>
+    </div>
+
+</div>{# end container #}
+{% endif %}
+
+<script>
+function pdbSettleTargetId(e) {
+    var t = (e.detail && e.detail.target) ? e.detail.target : e.target;
+    return (t && t.id) ? t.id : '';
+}
+
+function pdbUpdateCount() {
+    var tb = document.querySelector('#pdb-bestand-table tbody[data-count]');
+    var el = document.getElementById('pdb-result-count');
+    if (!tb || !el) return;
+    var n = parseInt(tb.getAttribute('data-count'), 10) || 0;
+    el.textContent = 'Mein Sortiment: ' + n + (n === 1 ? ' Pflanze' : ' Pflanzen');
+}
+
+document.addEventListener('htmx:afterSettle', function(e) {
+    var id = pdbSettleTargetId(e);
+    if (id === 'pdb-search-results') {
+        updateAufnehmenBar();
+        document.querySelectorAll('.pdb-search-cb').forEach(function(cb) {
+            cb.addEventListener('change', updateAufnehmenBar);
+        });
+    } else if (id === 'pdb-bestand-table') {
+        pdbUpdateCount();
+    }
+});
+
+function updateAufnehmenBar() {
+    var checked = document.querySelectorAll('.pdb-search-cb:checked').length;
+    document.getElementById('pdb-selected-count').textContent = checked;
+    document.getElementById('pdb-aufnehmen-bar').style.display = checked > 0 ? 'block' : 'none';
+}
+
+function pdbSearchClear() {
+    document.getElementById('pdb-search-input').value = '';
+    document.getElementById('pdb-search-results').innerHTML = '';
+    document.getElementById('pdb-aufnehmen-bar').style.display = 'none';
+    document.getElementById('pdb-aufnehmen-msg').style.display = 'none';
+}
+
+function pdbAufnehmen() {
+    var checked = document.querySelectorAll('.pdb-search-cb:checked');
+    if (!checked.length) return;
+    var data = new FormData();
+    data.append('action', 'aufnehmen');
+    data.append('db_path', pdbDbPath);
+    checked.forEach(function(cb) { data.append('plant_ids[]', cb.value); });
+    fetch('{{ base_url_relative }}/pdb-api/bestand', { method: 'POST', body: data })
+        .then(function(r) { return r.json(); })
+        .then(function(res) {
+            var msg = document.getElementById('pdb-aufnehmen-msg');
+            msg.style.display = 'block';
+            if (res.success) {
+                msg.style.color = '#2e7d32';
+                msg.textContent = res.message;
+                pdbSearchClear();
+                pdbReloadList();
+            } else {
+                msg.style.color = '#c62828';
+                msg.textContent = res.error || 'Fehler.';
+            }
+        });
+}
+
+function pdbBestandEdit(invId) {
+    loadLocations();
+    pdbMarkEditRow(invId);
+    fetch(pdbApiBase + '&action=load&inv_id=' + invId)
+        .then(function(r) { return r.json(); })
+        .then(function(res) {
+            if (!res.success) { alert(res.error); return; }
+            var d = res.data;
+            document.getElementById('pdb-edit-inv-id').value       = invId;
+            document.getElementById('pdb-edit-title').textContent  = d.botanical_name;
+            document.getElementById('pdb-edit-pot').value          = d.pot_size_code || '';
+            document.getElementById('pdb-edit-qty').value          = d.quantity !== null ? d.quantity : '';
+            document.getElementById('pdb-edit-status').value       = d.status || 'im_sortiment';
+            document.getElementById('pdb-edit-price').value        = d.price_chf !== null ? d.price_chf : '';
+            document.getElementById('pdb-edit-week').value         = d.delivery_week || '';
+            document.getElementById('pdb-edit-year').value  = d.delivery_year !== null ? d.delivery_year : new Date().getFullYear();
+            document.getElementById('pdb-loc-1').value = '';
+            document.getElementById('pdb-loc-2').style.display = 'none';
+            document.getElementById('pdb-loc-3').style.display = 'none';
+            if (d.location_id) pdbLocSetSelected(d.location_id);
+            document.getElementById('pdb-edit-ispublic').checked = d.is_public == 1;
+            // oXs-Felder laden
+            document.getElementById('pdb-edit-oxs-offer-type').value    = d.oxs_offer_type || '';
+            document.getElementById('pdb-edit-oxs-prop-method').value   = d.oxs_prop_method || '';
+            document.getElementById('pdb-edit-oxs-source').value        = d.oxs_source || '';
+            document.getElementById('pdb-edit-oxs-source-bio').value    = d.oxs_source_bio || '';
+            document.getElementById('pdb-edit-oxs-source-origin').value = d.oxs_source_origin || '';
+            document.getElementById('pdb-edit-oxs-geo-origin').value    = d.oxs_geo_origin || '';
+            document.getElementById('pdb-edit-oxs-offer-bio').value     = d.oxs_offer_bio || '';
+            document.getElementById('pdb-edit-oxs-publish').checked     = d.published_organicxseeds == 1;
+            pdbOxsSourceChanged();
+            document.getElementById('pdb-edit-notes').value        = d.notes || '';
+            document.getElementById('pdb-edit-msg').style.display  = 'none';
+            document.getElementById('pdb-edit-panel').style.display = 'block';
+            document.getElementById('pdb-edit-panel').scrollIntoView({behavior:'smooth'});
+        });
+}
+
+function pdbMarkEditRow(invId) {
+    document.querySelectorAll('#pdb-bestand-table tr.pdb-row-editing').forEach(function(r) {
+        r.classList.remove('pdb-row-editing');
+    });
+    if (invId) {
+        var row = document.querySelector('#pdb-bestand-table tr[data-inv-id="' + invId + '"]');
+        if (row) row.classList.add('pdb-row-editing');
+    }
+}
+
+function pdbEditClose() {
+    document.getElementById('pdb-edit-panel').style.display = 'none';
+    pdbMarkEditRow(null);
+}
+
+function pdbEditSave() {
+    var data = new FormData();
+    data.append('action',        'save');
+    data.append('db_path',       pdbDbPath);
+    data.append('inv_id',        document.getElementById('pdb-edit-inv-id').value);
+    data.append('pot_size_code', document.getElementById('pdb-edit-pot').value);
+    data.append('quantity',      document.getElementById('pdb-edit-qty').value);
+    data.append('status',        document.getElementById('pdb-edit-status').value);
+    data.append('price_chf',     document.getElementById('pdb-edit-price').value);
+    data.append('delivery_week', document.getElementById('pdb-edit-week').value);
+    data.append('delivery_year', document.getElementById('pdb-edit-year').value);
+    data.append('location_id',   pdbLocGetSelected());
+    data.append('is_public',     document.getElementById('pdb-edit-ispublic').checked ? '1' : '0');
+    // oXs-Felder senden
+    data.append('oxs_offer_type',    document.getElementById('pdb-edit-oxs-offer-type').value);
+    data.append('oxs_prop_method',   document.getElementById('pdb-edit-oxs-prop-method').value);
+    data.append('oxs_source',        document.getElementById('pdb-edit-oxs-source').value);
+    data.append('oxs_source_bio',    document.getElementById('pdb-edit-oxs-source-bio').value);
+    data.append('oxs_source_origin', document.getElementById('pdb-edit-oxs-source-origin').value);
+    data.append('oxs_geo_origin',    document.getElementById('pdb-edit-oxs-geo-origin').value);
+    data.append('oxs_offer_bio',     document.getElementById('pdb-edit-oxs-offer-bio').value);
+    data.append('published_organicxseeds',
+                document.getElementById('pdb-edit-oxs-publish').checked ? '1' : '0');
+    data.append('notes',         document.getElementById('pdb-edit-notes').value);
+    fetch('{{ base_url_relative }}/pdb-api/bestand', { method: 'POST', body: data })
+        .then(function(r) { return r.json(); })
+        .then(function(res) {
+            var msg = document.getElementById('pdb-edit-msg');
+            msg.style.display = 'block';
+            if (res.success) {
+                msg.style.color = '#2e7d32';
+                msg.textContent = 'Gespeichert.';
+                pdbReloadList();
+                setTimeout(pdbEditClose, 800);
+            } else {
+                msg.style.color = '#c62828';
+                msg.textContent = res.error || 'Fehler.';
+            }
+        });
+}
+
+function pdbBestandRemove(invId) {
+    var nameEl = document.querySelector('#pdb-bestand-table tr[data-inv-id="' + invId + '"] .pdb-cell-botanical');
+    var nm = nameEl ? nameEl.textContent.trim() : 'Pflanze';
+    if (!confirm('«' + nm + '» aus dem Sortiment entfernen?')) return;
+    var data = new FormData();
+    data.append('action', 'remove');
+    data.append('db_path', pdbDbPath);
+    data.append('inv_id', invId);
+    fetch('{{ base_url_relative }}/pdb-api/bestand', { method: 'POST', body: data })
+        .then(function(r) { return r.json(); })
+        .then(function(res) {
+            if (res.success) pdbReloadList();
+        });
+}
+
+var pdbAllLocs = [];
+
+function pdbLocChildren(parentId) {
+    return pdbAllLocs.filter(function(l) {
+        return parentId === null ? l.parent_id === null : l.parent_id == parentId;
+    });
+}
+
+function pdbLocFill(selId, parentId, selectedId) {
+    var sel = document.getElementById(selId);
+    var first = selId === 'pdb-loc-1' ? '— Standort wählen —' : '(alle)';
+    sel.innerHTML = '<option value="">' + first + '</option>';
+    pdbLocChildren(parentId).forEach(function(l) {
+        var opt = document.createElement('option');
+        opt.value = l.id;
+        opt.textContent = l.name;
+        if (selectedId && l.id == selectedId) opt.selected = true;
+        sel.appendChild(opt);
+    });
+}
+
+function pdbLocCascade(level) {
+    if (level === 1) {
+        var v1 = document.getElementById('pdb-loc-1').value;
+        var ch = v1 ? pdbLocChildren(v1) : [];
+        var s2 = document.getElementById('pdb-loc-2');
+        var s3 = document.getElementById('pdb-loc-3');
+        if (ch.length) { pdbLocFill('pdb-loc-2', v1, null); s2.style.display = ''; }
+        else { s2.style.display = 'none'; s2.value = ''; }
+        s3.style.display = 'none'; s3.value = '';
+    } else if (level === 2) {
+        var v2 = document.getElementById('pdb-loc-2').value;
+        var ch2 = v2 ? pdbLocChildren(v2) : [];
+        var s3 = document.getElementById('pdb-loc-3');
+        if (ch2.length) { pdbLocFill('pdb-loc-3', v2, null); s3.style.display = ''; }
+        else { s3.style.display = 'none'; s3.value = ''; }
+    }
+}
+
+function pdbLocGetSelected() {
+    var v3 = document.getElementById('pdb-loc-3').value;
+    var v2 = document.getElementById('pdb-loc-2').value;
+    var v1 = document.getElementById('pdb-loc-1').value;
+    return v3 || v2 || v1 || '';
+}
+
+function pdbLocSetSelected(locationId) {
+    // Tiefsten Standort auswählen und Dropdowns entsprechend aufbauen
+    if (!locationId) return;
+    var loc = pdbAllLocs.find(function(l) { return l.id == locationId; });
+    if (!loc) return;
+
+    // Pfad vom Root aufbauen
+    var path = [loc];
+    var cur = loc;
+    while (cur.parent_id !== null) {
+        cur = pdbAllLocs.find(function(l) { return l.id == cur.parent_id; });
+        if (!cur) break;
+        path.unshift(cur);
+    }
+
+    // L1
+    pdbLocFill('pdb-loc-1', null, path[0] ? path[0].id : null);
+    if (path.length >= 2) {
+        pdbLocFill('pdb-loc-2', path[0].id, path[1].id);
+        document.getElementById('pdb-loc-2').style.display = '';
+    }
+    if (path.length >= 3) {
+        pdbLocFill('pdb-loc-3', path[1].id, path[2].id);
+        document.getElementById('pdb-loc-3').style.display = '';
+    }
+}
+
+function loadLocations() {
+    if (pdbAllLocs.length) return;
+    fetch(pdbApiBase + '&action=locations')
+        .then(function(r) { return r.json(); })
+        .then(function(locs) {
+            pdbAllLocs = locs;
+            pdbLocFill('pdb-loc-1', null, null);
+        });
+}
+
+// Standorte sofort beim Seitenload vorladen
+document.addEventListener('DOMContentLoaded', function() { loadLocations(); });
+
+function pdbOxsSourceChanged() {
+    var v = document.getElementById('pdb-edit-oxs-source').value;
+    document.getElementById('pdb-oxs-oekotyp-fields').style.display =
+        (v === 'Ökotyp') ? '' : 'none';
+}
+</script>
+{% endblock %}
