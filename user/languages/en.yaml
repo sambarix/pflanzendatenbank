@@ -1,0 +1,7 @@
+PLUGIN_LOGIN:
+  CURRENT_PASSWORD_REQUIRED: "Bitte geben Sie Ihr aktuelles Passwort ein, um ein neues zu setzen."
+  CURRENT_PASSWORD_REQUIRED_EMAIL: "Bitte geben Sie Ihr aktuelles Passwort ein, um die E-Mail-Adresse zu ändern."
+  CURRENT_PASSWORD_WRONG: "Das aktuelle Passwort ist nicht richtig."
+  CURRENT_PASSWORD_TOO_MANY: "Zu viele falsche Passwörter. Bitte versuchen Sie es in %s Minuten wieder."
+  PASSWORDS_DO_NOT_MATCH: "Die beiden neuen Passwörter sind nicht gleich. Bitte zweimal dasselbe eingeben."
+  PASSWORD_CHANGED: "Ihr Passwort wurde geändert. Andere Browser, in denen Sie angemeldet waren, wurden abgemeldet."

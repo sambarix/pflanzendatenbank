@@ -6,3 +6,22 @@ redirect_after_logout: true
 route_after_logout: '/'
 redirect_to_login: true
 dynamic_page_visibility: true
+# Felder, die das Profilformular speichert (Betriebs- und Bio-Angaben)
+user_registration:
+  fields:
+    - username
+    - password
+    - email
+    - fullname
+    - title
+    - level
+    - twofa_enabled
+    - betrieb_strasse
+    - betrieb_plz
+    - betrieb_ort
+    - betrieb_land
+    - betrieb_telefon
+    - betrieb_url
+    - bio_zertifizierung
+    - bio_betriebsnummer
+    - betrieb_notiz

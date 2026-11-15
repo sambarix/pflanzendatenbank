@@ -34,13 +34,27 @@ form:
       label: Name / Betriebsname
       placeholder: Bio Gärtnerei Muster
 
+    current_password:
+      type: current_password
+      label: Aktuelles Passwort
+      autocomplete: current-password
+      help: 'Nur nötig, wenn Sie das Passwort oder die E-Mail-Adresse ändern.'
+      validate:
+        type: password
+
     password:
       type: password
       label: Neues Passwort
+      autocomplete: new-password
       help: 'Nur ausfüllen wenn Sie das Passwort ändern möchten.'
       validate:
         message: 'Mindestens 8 Zeichen, Gross- und Kleinbuchstaben, eine Zahl.'
         config-pattern@: system.pwd_regex
+
+    password_confirm:
+      type: password
+      label: Neues Passwort wiederholen
+      autocomplete: new-password
 
     betrieb_section:
       type: section
