@@ -1,6 +1,6 @@
 # Pflanzendatenbank (PDB) - Pflichtenheft
 
-**Version:** 1.2, Stand 14. November 2026 (Nachführung von Version 1.1 vom 4. Februar 2025, siehe `docs/archiv/`)
+**Version:** 1.2, Stand 15. November 2026 (Nachführung von Version 1.1 vom 4. Februar 2025, siehe `docs/archiv/`)
 **Projektleitung:** Peter Müller (oMioBio), [pm@omiobio.ch](mailto:pm@omiobio.ch)
 **Quellcode:** https://github.com/sambarix/pflanzendatenbank, Lizenz MIT
 **Live-Beta:** https://pdb.biosoft.ch
@@ -56,16 +56,18 @@ Grav und SQLite sind Standardwerkzeuge. Wo Grav eine Funktion mitbringt (Gruppen
 
 Abweichung von Version 1.1: Statt der geplanten EAV-Tabelle `plant_sections` gibt es feste Detailtabellen pro Bereich. `plant_traits` und `plant_synonyms` sind angelegt, aber noch nicht in Gebrauch.
 
-**Konto-Datenbank (je Gärtnerei oder Planer)**: `nursery_info`, `nursery_locations` (hierarchische Standorte), `pot_sizes_custom`, `plant_inventory` (Bestand mit Topfgrösse, Menge, Status, Preis, Standort, öffentlich-Kennzeichen und oXs-Feldern), `inventory_overrides`, `request_lists` und `request_items` (Anfragelisten). Die Registrierung legt die Datei an, fehlende Spalten ergänzt eine automatische Migration. Der Pfad steht im Konto und kommt nie aus dem Browser.
+**Konto-Datenbank (je Gärtnerei oder Planer)**: `nursery_info`, `nursery_locations` (hierarchische Standorte), `pot_sizes_custom`, `plant_inventory` (Bestand mit Topfgrösse, Menge, Status, Preis, Standort, öffentlich-Kennzeichen und oXs-Feldern), `inventory_overrides`, `request_lists` und `request_items` (Anfragelisten). Dazu kommen die Pflanzentabellen im Schema der Stammdaten (`plants` und die Detailtabellen, 16 Tabellen) mit den kopierten und den eigenen Pflanzen sowie `plant_local` (Verknüpfung mit der Stammdaten-Pflanze, Herkunft kopie oder neu, Schalter zur Freigabe). Kopien behalten die ID der Stammdaten, eigene Pflanzen bekommen IDs ab 1000000. Die Registrierung legt die Datei an, fehlende Tabellen und Spalten ergänzt eine automatische Migration, die auch die Kopien der Bestandspflanzen aus den Stammdaten nachholt. Der Pfad steht im Konto und kommt nie aus dem Browser.
+
+**Vorschlagsliste (`vorschlag.db`)**: Pro Gärtnerei und Pflanze ein Datensatz mit einem Abbild der Pflanze (JSON), Status (offen, übernommen, abgelehnt, zurückgezogen), Entscheidung und Begründung. Gärtnereien schreiben nur über die API hinein (Absender aus dem Login), Editoren sehen alle Vorschläge. Die Datei entsteht beim ersten Zugriff. Das Feld Notizen wird nie weitergegeben.
 
 ### 2.3 Rollen und Rechte
 
 | Rolle | Grav-Gruppe | Darf |
 |---|---|---|
 | Besucher | keine | Liste, Portrait, Hilfe ansehen |
-| Gärtnerei | `user` (Recht `site.pdb_nursery`) | Sortiment, Bestand, Standorte, Export, Anfragelisten, Profil |
+| Gärtnerei | `user` (Recht `site.pdb_nursery`) | Sortiment, Bestand, Standorte, Export, eigene Pflanzen erfassen und vorschlagen, Anfragelisten, Profil |
 | Planer | `planer` | Anfragelisten, Profil (keine Bestandsfunktionen) |
-| Editor | `editor` (Recht `site.pdb_editor`) | zusätzlich Stammdaten bearbeiten, kein Backend-Zugang |
+| Editor | `editor` (Recht `site.pdb_editor`) | zusätzlich Stammdaten bearbeiten, Vorschläge prüfen, kein Backend-Zugang |
 | Admin | Grav-Backend | Konten und Gruppen verwalten |
 
 Ein Editor mit eigener Gärtnerei gehört zu beiden Gruppen. Die Registrierung vergibt nie das Editor-Recht.
@@ -103,6 +105,8 @@ Ein Editor mit eigener Gärtnerei gehört zu beiden Gruppen. Die Registrierung v
 | Grosser Datenimport und Korrektur der Sortennamen mit fehlendem schliessendem Apostroph | teilweise: Rosen, Päonien, Stauden-, Wildrosen- und Etikettenlisten sind übernommen (4332 Pflanzen, Tippfehler per GBIF korrigiert), weitere Listen und Etikettenordner sind offen |
 | Klasse/Gruppe (z.B. Rosenklasse, Päonien-Gruppe, Pelargonien-Serie) als eigenes Feld, in Liste (Spalte, Suche) und Portrait | umgesetzt |
 | Klasse/Gruppe im Eingabeformular | offen |
+| Vorschlagsliste: Vorschläge der Gärtnereien mit Absender sehen, nur die Abweichungen zum Master prüfen, Werte korrigieren, Feld für Feld übernehmen oder mit Begründung ablehnen; Namen bestehender Pflanzen sind gesperrt, Kategorien und Synonyme werden nur ergänzt | umgesetzt |
+| Ein Editor mit eigener Gärtnerei kann Pflanzen wie eine Gärtnerei erfassen und einen Vorschlag erzeugen, den ein anderer Editor prüft | umgesetzt |
 
 ### 3.3 Gärtnereien
 
@@ -116,7 +120,11 @@ Ein Editor mit eigener Gärtnerei gehört zu beiden Gruppen. Die Registrierung v
 | Export mit Auswahlkriterien (Kategorie, Status, öffentlich) und als PDF | offen |
 | oXs-Felder am Bestand (Angebotstyp, Vermehrung, Herkunft, Bio) | teilweise: Felder werden erfasst, Meldung an organicxseeds.ch ist offen |
 | Öffentliche Verfügbarkeit | teilweise: Portrait zeigt Gärtnerei mit Link, Topf, Menge und Preis noch nicht |
-| Eigene Kopie der Stammdaten pro Gärtnerei mit Änderungsvorschlägen und Aktualisierung aus dem Master | offen (geplant) |
+| Eigene Kopie der Stammdaten pro Gärtnerei: Aufnehmen kopiert die ganze Pflanze in die eigene Datenbank, Bestand und Export arbeiten nur auf der eigenen Datenbank | umgesetzt |
+| Eigene Pflanzen erfassen und die Eigenschaften der Kopien ändern (Seite "Pflanze erfassen"), Dublettenprüfung gegen eigene Datenbank und Stammdaten | umgesetzt |
+| Pflanzen den Editoren vorschlagen (Haken pro Pflanze, Standard an); Status und Begründung einer Ablehnung in der Bestandsliste | umgesetzt |
+| Aktualisierung der Kopien aus den Stammdaten (Nachziehen) | offen |
+| Eigene Datenbank herunterladen und lokal betreiben | offen (geplant) |
 | Export in Webshop-Formate (Bagisto, Shopware, Gambio, ...) | offen |
 | Etikettendruck (Stecketiketten, Labeldrucker, QR-Code) | offen |
 
@@ -209,7 +217,14 @@ Die vollständige Liste steht im Schema `database/plants_schema.sql`, die fachli
 4. Exportiert die Anfrage als Excel-Datei und schickt sie per E-Mail an Anbieter.
 5. Die Anbieter beantworten die Datei mit Auswahlfeldern und schicken sie zurück.
 
-### 7.3 Gartenplaner sucht Stauden
+### 7.3 Gärtnerei erfasst eine Pflanze und schlägt sie vor
+
+1. Öffnet "Pflanze erfassen" und trägt Gattung, Art und Sorte ein; die Dublettenprüfung zeigt, ob die Pflanze in den Stammdaten schon steht.
+2. Ergänzt Eigenschaften, lässt den Haken "für die öffentliche Pflanzendatenbank vorschlagen" gesetzt und speichert. Die Pflanze steht mit der Marke "eigene" im Sortiment.
+3. Ein Editor öffnet "Vorschläge", sieht die Gärtnerei und die Abweichungen zum Master, korrigiert bei Bedarf und übernimmt die gewählten Felder oder lehnt mit Begründung ab.
+4. Die Gärtnerei sieht in ihrer Bestandsliste den Status. Nach der Übernahme steht die Pflanze in den Stammdaten und ist mit der eigenen Pflanze verknüpft.
+
+### 7.4 Gartenplaner sucht Stauden
 
 1. Öffnet die Liste, sucht "Lavendel", filtert nach Kategorie, sortiert nach Winterhärte.
 2. Öffnet das Portrait und sieht, welche Gärtnereien die Pflanze anbieten.
@@ -226,14 +241,14 @@ Die vollständige Liste steht im Schema `database/plants_schema.sql`, die fachli
 - Manuell mit Testkonten für jede Rolle (Gärtnerei, Planer, Editor, Admin), jeweils mit Prüfung der gesperrten Seiten und Endpunkte
 - Syntaxprüfung aller PHP-Dateien und Aufrufe der API-Funktionen auf der Kommandozeile
 - Excel-Export wird mit einer Tabellenkalkulation geöffnet und kontrolliert
-- Automatisierte Tests (Datenbankabfragen, API, Oberfläche): offen
+- Automatisierte Tests (Datenbankabfragen, API, Oberfläche): teilweise. Für den Umbau vom 15. November 2026 laufen lokale Testskripte (HTTP-Tests gegen eine Testinstallation mit Testkonten für jede Rolle, Migration, Oberflächentest der Vorschlagsseite); sie sind noch nicht Teil des Repositorys
 
 ## 10. Planung
 
 | Phase | Inhalt | Stand |
 |---|---|---|
-| 1 | Pflanzenliste und Portrait, Erfassung für Editoren, Konten, Bestand, Anfrageliste für den Zukauf ohne Bio-Material, Datenschutz | erreicht (Stand November 2026) |
-| 2 | Export mit Auswahlkriterien, Rückweg der Anfrageliste, eigene Kopie der Stammdaten mit Vorschlägen, Stammdaten-Import, oXs-Meldung | offen |
+| 1 | Pflanzenliste und Portrait, Erfassung für Editoren, Konten, Bestand, Anfrageliste für den Zukauf ohne Bio-Material, Datenschutz, eigene Kopie der Stammdaten mit Pflanzenerfassung und Vorschlagsliste für Gärtnereien | erreicht (Stand November 2026) |
+| 2 | Export mit Auswahlkriterien, Rückweg der Anfrageliste, Nachziehen der Kopien aus den Stammdaten, Download der eigenen Datenbank, Stammdaten-Import, oXs-Meldung | offen |
 | 3 | Etikettendruck, Netzwerk-Sync, Webshop-Schnittstellen, öffentliche REST-Schnittstelle | offen |
 
 ## 11. Risiken und Lösungen
@@ -243,7 +258,7 @@ Die vollständige Liste steht im Schema `database/plants_schema.sql`, die fachli
 | Grav 2.x ist jung, Updates ändern Verhalten | mittel | Kind-Theme, wenig eigener Code, Test nach jedem Update |
 | Adress- und Kontaktdaten in Konten | hoch | eigene Datenbankdatei je Betrieb, keine Drittanbieter, Datenschutzerklärung |
 | Zugangscode wird weitergegeben | mittel | Hash, Sperre nach Fehlversuchen, Konten durch den Admin prüfbar |
-| Gärtnereien pflegen dieselben Pflanzen doppelt | mittel | eigene Kopie mit Vorschlägen und Abgleich (Phase 2) |
+| Gärtnereien pflegen dieselben Pflanzen doppelt | mittel | eigene Kopie mit Vorschlägen (umgesetzt), Abgleich der Kopien mit den Stammdaten (Phase 2) |
 | Datenqualität der Sortennamen | niedrig | Korrekturskript, zuerst auf einer Kopie |
 | Etikettendruck-Treiber | mittel | Phase 3 |
 
@@ -276,4 +291,4 @@ Die vollständige Liste steht im Schema `database/plants_schema.sql`, die fachli
 
 **Beteiligte:** Peter Müller (Challenge Owner), KI-Assistenten (Claude von Anthropic, Le Chat von Mistral, OLMo, DeepSeek und weitere), Open Farming Hackday Community
 
-*Ende des Pflichtenhefts, Version 1.2, 14. November 2026*
+*Ende des Pflichtenhefts, Version 1.2, 15. November 2026*

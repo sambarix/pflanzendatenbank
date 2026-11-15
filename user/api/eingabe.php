@@ -1,12 +1,15 @@
 <?php
 /**
  * PDB Eingabe API (Grav 2)
- * Neue Pflanzen erfassen und bearbeiten in den Stammdaten (plants.db, 18-Tabellen-Schema).
+ * Neue Pflanzen erfassen und bearbeiten - mit zwei Zielen (Parameter target, immer mit Rechtepruefung):
+ *   target=public (Standard): Stammdaten plants.db, nur Editoren (site.login UND site.pdb_editor).
+ *   target=own: die eigene Gaertnerei-DB (user.db), nur Konten mit site.pdb_nursery. Die Pflanze liegt
+ *               dort als ganze Pflanze (Umbau A); neue Pflanzen bekommen eine lokale ID ab 1'000'000
+ *               und kommen automatisch ins Sortiment. plants.db wird dabei nur gelesen (Dublettenpruefung,
+ *               Autovervollstaendigung, Kategorien).
+ * Der DB-Pfad ist serverseitig bestimmt (Stammdaten fest, eigene DB aus dem Login) und kommt nie aus dem
+ * Browser. Die alte Version (api/eingabe.php) pruefte keinen Login.
  * Reine Bibliotheksdatei - wird vom pdb-api-Plugin eingebunden, NIE direkt per HTTP aufgerufen.
- *
- * Zugriff nur fuer Editoren (site.login UND site.pdb_editor, Gruppe "editor"). Der DB-Pfad
- * ist fest (Stammdaten) und kommt nie aus dem Browser. Die alte Version (api/eingabe.php)
- * pruefte keinen Login.
  *
  * Actions: autocomplete_genus, autocomplete_species, check_duplicate, save, load_plant, category_tree
  */
@@ -22,16 +25,30 @@ function pdb_api_eingabe(\Grav\Common\Grav $grav): array
     if (!$user || empty($user->authenticated) || !$user->authorize('site.login')) {
         return pdb_eingabe_json(['error' => 'Nicht angemeldet.'], 401);
     }
-    if (!$user->authorize('site.pdb_editor')) {
-        return pdb_eingabe_json(['error' => 'Keine Berechtigung: Die Stammdaten duerfen nur Editoren bearbeiten.'], 403);
-    }
-
-    $dbPath = GRAV_ROOT . '/user/data/sqlite/plants.db';
-    if (!is_file($dbPath)) {
-        return pdb_eingabe_json(['error' => 'Stammdaten-Datenbank nicht gefunden.'], 500);
-    }
-
     $action = (string)($_GET['action'] ?? $_POST['action'] ?? '');
+    $target = ((string)($_GET['target'] ?? 'public')) === 'own' ? 'own' : 'public';
+    $master = null;
+    $nurseryInfo = null;
+
+    if ($target === 'own') {
+        // Gaertnerei: nur die eigene DB (Pfad aus dem Login, Recht site.pdb_nursery)
+        $n = pdb_current_nursery($grav);
+        if (isset($n['error'])) {
+            return pdb_eingabe_json(['error' => $n['error']], (int)($n['status'] ?? 403));
+        }
+        $dbPath = $n['path'];
+        $master = pdb_userdb_open_master(); // nur lesend; null, wenn nicht vorhanden
+        $nurseryInfo = ['key' => basename($dbPath), 'name' => (string)($user->get('fullname') ?: ($n['username'] ?? ''))];
+    } else {
+        if (!$user->authorize('site.pdb_editor')) {
+            return pdb_eingabe_json(['error' => 'Keine Berechtigung: Die Stammdaten duerfen nur Editoren bearbeiten.'], 403);
+        }
+        $dbPath = GRAV_ROOT . '/user/data/sqlite/plants.db';
+        if (!is_file($dbPath)) {
+            return pdb_eingabe_json(['error' => 'Stammdaten-Datenbank nicht gefunden.'], 500);
+        }
+    }
+    $ctx = ['mode' => $target, 'master' => $master, 'nursery' => $nurseryInfo];
 
     try {
         $db = new SQLite3($dbPath, SQLITE3_OPEN_READWRITE);
@@ -40,17 +57,20 @@ function pdb_api_eingabe(\Grav\Common\Grav $grav): array
         $db->exec('PRAGMA foreign_keys=ON');
     } catch (\Throwable $e) {
         error_log('PDB Eingabe: Datenbank oeffnen fehlgeschlagen: ' . $e->getMessage());
+        if ($master) {
+            $master->close();
+        }
         return pdb_eingabe_json(['error' => 'Datenbankfehler.'], 500);
     }
 
     try {
         switch ($action) {
-            case 'autocomplete_genus':   return pdb_eingabe_autocomplete_genus($db);
-            case 'autocomplete_species': return pdb_eingabe_autocomplete_species($db);
-            case 'check_duplicate':      return pdb_eingabe_check_duplicate($db);
-            case 'save':                 return pdb_eingabe_save($db);
-            case 'load_plant':           return pdb_eingabe_load_plant($db);
-            case 'category_tree':        return pdb_eingabe_category_tree($db);
+            case 'autocomplete_genus':   return pdb_eingabe_autocomplete_genus($db, $ctx);
+            case 'autocomplete_species': return pdb_eingabe_autocomplete_species($db, $ctx);
+            case 'check_duplicate':      return pdb_eingabe_check_duplicate($db, $ctx);
+            case 'save':                 return pdb_eingabe_save($db, $ctx);
+            case 'load_plant':           return pdb_eingabe_load_plant($db, $ctx);
+            case 'category_tree':        return pdb_eingabe_category_tree($db, $ctx);
             default:
                 return pdb_eingabe_json(['error' => 'Unbekannte Aktion.'], 400);
         }
@@ -59,6 +79,9 @@ function pdb_api_eingabe(\Grav\Common\Grav $grav): array
         return pdb_eingabe_json(['error' => 'Serverfehler.'], 500);
     } finally {
         $db->close();
+        if ($master) {
+            $master->close();
+        }
     }
 }
 
@@ -66,23 +89,33 @@ function pdb_api_eingabe(\Grav\Common\Grav $grav): array
 // Lesende Actions
 // ============================================================
 
-function pdb_eingabe_autocomplete_genus(SQLite3 $db): array
+/** Datenbanken, aus denen Vorschlaege kommen: die Ziel-DB, bei "own" zusaetzlich die Stammdaten (lesend). */
+function pdb_eingabe_sources(SQLite3 $db, array $ctx): array
+{
+    return array_values(array_filter([$db, $ctx['master'] ?? null]));
+}
+
+function pdb_eingabe_autocomplete_genus(SQLite3 $db, array $ctx): array
 {
     $term = trim((string)($_GET['term'] ?? ''));
     if ($term === '') {
         return pdb_eingabe_json([]);
     }
-    $stmt = $db->prepare("SELECT DISTINCT genus FROM plants WHERE genus LIKE :term ESCAPE '!' ORDER BY genus LIMIT 20");
-    $stmt->bindValue(':term', pdb_eingabe_like($term) . '%', SQLITE3_TEXT);
-    $res = $stmt->execute();
     $items = [];
-    while ($row = $res->fetchArray(SQLITE3_ASSOC)) {
-        $items[] = $row['genus'];
+    foreach (pdb_eingabe_sources($db, $ctx) as $src) {
+        $stmt = $src->prepare("SELECT DISTINCT genus FROM plants WHERE genus LIKE :term ESCAPE '!' ORDER BY genus LIMIT 20");
+        $stmt->bindValue(':term', pdb_eingabe_like($term) . '%', SQLITE3_TEXT);
+        $res = $stmt->execute();
+        while ($row = $res->fetchArray(SQLITE3_ASSOC)) {
+            $items[$row['genus']] = true;
+        }
     }
-    return pdb_eingabe_json($items);
+    $items = array_keys($items);
+    sort($items, SORT_STRING);
+    return pdb_eingabe_json(array_slice($items, 0, 20));
 }
 
-function pdb_eingabe_autocomplete_species(SQLite3 $db): array
+function pdb_eingabe_autocomplete_species(SQLite3 $db, array $ctx): array
 {
     $genus = trim((string)($_GET['genus'] ?? ''));
     $term  = trim((string)($_GET['term'] ?? ''));
@@ -94,20 +127,24 @@ function pdb_eingabe_autocomplete_species(SQLite3 $db): array
         $sql .= " AND species LIKE :term ESCAPE '!'";
     }
     $sql .= " AND species IS NOT NULL AND species != '' ORDER BY species LIMIT 20";
-    $stmt = $db->prepare($sql);
-    $stmt->bindValue(':genus', $genus, SQLITE3_TEXT);
-    if ($term !== '') {
-        $stmt->bindValue(':term', pdb_eingabe_like($term) . '%', SQLITE3_TEXT);
-    }
-    $res = $stmt->execute();
     $items = [];
-    while ($row = $res->fetchArray(SQLITE3_ASSOC)) {
-        $items[] = $row['species'];
+    foreach (pdb_eingabe_sources($db, $ctx) as $src) {
+        $stmt = $src->prepare($sql);
+        $stmt->bindValue(':genus', $genus, SQLITE3_TEXT);
+        if ($term !== '') {
+            $stmt->bindValue(':term', pdb_eingabe_like($term) . '%', SQLITE3_TEXT);
+        }
+        $res = $stmt->execute();
+        while ($row = $res->fetchArray(SQLITE3_ASSOC)) {
+            $items[$row['species']] = true;
+        }
     }
-    return pdb_eingabe_json($items);
+    $items = array_keys($items);
+    sort($items, SORT_STRING);
+    return pdb_eingabe_json(array_slice($items, 0, 20));
 }
 
-function pdb_eingabe_check_duplicate(SQLite3 $db): array
+function pdb_eingabe_check_duplicate(SQLite3 $db, array $ctx): array
 {
     $name = trim((string)($_GET['botanical_name'] ?? ''));
     if ($name === '') {
@@ -123,22 +160,58 @@ function pdb_eingabe_check_duplicate(SQLite3 $db): array
     $stmt->bindValue(':name', $name, SQLITE3_TEXT);
     $row = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
     if ($row) {
-        return pdb_eingabe_json(['exists' => true, 'id' => $row['id'], 'name' => $row['botanical_name']]);
+        return pdb_eingabe_json(['exists' => true, 'where' => 'target', 'id' => $row['id'], 'name' => $row['botanical_name']]);
+    }
+    // Eigene DB: zusaetzlich gegen die oeffentliche PDB pruefen
+    if (($ctx['mode'] ?? '') === 'own' && !empty($ctx['master'])) {
+        $row = pdb_eingabe_master_duplicate($db, $ctx['master'], $name, $excludeId);
+        if ($row) {
+            return pdb_eingabe_json(['exists' => true, 'where' => 'public', 'id' => $row['id'], 'name' => $row['botanical_name']]);
+        }
     }
     return pdb_eingabe_json(['exists' => false]);
 }
 
-function pdb_eingabe_category_tree(SQLite3 $db): array
+/**
+ * Gibt es den botanischen Namen schon in der oeffentlichen PDB? Die Master-Pflanze, mit der die gerade
+ * bearbeitete eigene Pflanze verknuepft ist, zaehlt nicht als Dublette.
+ */
+function pdb_eingabe_master_duplicate(SQLite3 $db, SQLite3 $master, string $name, int $editId): ?array
 {
-    $res = $db->query('SELECT path FROM categories ORDER BY id');
+    $exclMaster = 0;
+    if ($editId > 0) {
+        $s = $db->prepare('SELECT master_plant_id FROM plant_local WHERE plant_id = :id');
+        $s->bindValue(':id', $editId, SQLITE3_INTEGER);
+        $r = $s->execute()->fetchArray(SQLITE3_NUM);
+        $exclMaster = $r ? (int)$r[0] : 0;
+    }
+    $m = $master->prepare('SELECT id, botanical_name FROM plants WHERE botanical_name = :name AND id != :excl LIMIT 1');
+    $m->bindValue(':name', $name, SQLITE3_TEXT);
+    $m->bindValue(':excl', $exclMaster, SQLITE3_INTEGER);
+    $row = $m->execute()->fetchArray(SQLITE3_ASSOC);
+    return $row ?: null;
+}
+
+function pdb_eingabe_category_tree(SQLite3 $db, array $ctx): array
+{
     $paths = [];
+    if (($ctx['mode'] ?? '') === 'own') {
+        // Die Kategorienliste gehoert den Stammdaten; ohne plants.db nur die schon verwendeten Pfade
+        if (!empty($ctx['master'])) {
+            $res = $ctx['master']->query('SELECT path FROM categories ORDER BY id');
+        } else {
+            $res = $db->query('SELECT DISTINCT category_path AS path FROM plant_categories ORDER BY category_path');
+        }
+    } else {
+        $res = $db->query('SELECT path FROM categories ORDER BY id');
+    }
     while ($row = $res->fetchArray(SQLITE3_ASSOC)) {
         $paths[] = $row['path'];
     }
     return pdb_eingabe_json($paths);
 }
 
-function pdb_eingabe_load_plant(SQLite3 $db): array
+function pdb_eingabe_load_plant(SQLite3 $db, array $ctx): array
 {
     $id = (int)($_GET['id'] ?? 0);
     if ($id <= 0) {
@@ -202,6 +275,14 @@ function pdb_eingabe_load_plant(SQLite3 $db): array
         $data['synonyms'][] = $row;
     }
 
+    // Eigene DB: Herkunft und Freigabe-Schalter der Pflanze mitliefern
+    if (($ctx['mode'] ?? '') === 'own') {
+        $data['local'] = $db->querySingle(
+            "SELECT master_plant_id, origin, locally_changed, share FROM plant_local WHERE plant_id = $id", true
+        ) ?: null;
+        $data['vorschlag'] = pdb_vorschlag_status_for((string)($ctx['nursery']['key'] ?? ''))[$id] ?? null;
+    }
+
     return pdb_eingabe_json($data);
 }
 
@@ -209,8 +290,9 @@ function pdb_eingabe_load_plant(SQLite3 $db): array
 // Speichern (neue Pflanze oder Aenderung)
 // ============================================================
 
-function pdb_eingabe_save(SQLite3 $db): array
+function pdb_eingabe_save(SQLite3 $db, array $ctx): array
 {
+    $isOwn = ($ctx['mode'] ?? 'public') === 'own';
     if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
         return pdb_eingabe_json(['error' => 'POST erforderlich.'], 405);
     }
@@ -227,35 +309,13 @@ function pdb_eingabe_save(SQLite3 $db): array
         return pdb_eingabe_json(['error' => 'Keine Daten empfangen']);
     }
 
-    $genus = pdb_eingabe_str($input, 'genus');
-    if ($genus === '') {
-        return pdb_eingabe_json(['error' => 'Gattung ist ein Pflichtfeld']);
-    }
-
     // --- Namen erzeugen ---
-    $genus      = pdb_eingabe_ucfirst(mb_strtolower($genus));
-    $species    = mb_strtolower(pdb_eingabe_str($input, 'species'));
-    $subspecies = pdb_eingabe_str($input, 'subspecies');
-    $ecotype    = pdb_eingabe_str($input, 'ecotype');
-    $cultivarOriginal = pdb_eingabe_str($input, 'cultivar');
-
-    foreach ([$genus, $species, $subspecies, $cultivarOriginal, $ecotype] as $part) {
-        if (mb_strlen($part) > 120) {
-            return pdb_eingabe_json(['error' => 'Ein Namensfeld ist zu lang (max. 120 Zeichen).']);
-        }
+    $nm = pdb_eingabe_build_names($input);
+    if (isset($nm['error'])) {
+        return pdb_eingabe_json(['error' => $nm['error']]);
     }
-
-    // Deutsche Umlaute in der Sorte nach botanischem Standard umschreiben
-    $cultivar = pdb_eingabe_convert_umlauts($cultivarOriginal);
-
-    $botanicalName = $genus;
-    if ($species !== '')    { $botanicalName .= ' ' . $species; }
-    if ($subspecies !== '') { $botanicalName .= ' subsp. ' . mb_strtolower($subspecies); }
-    if ($cultivar !== '')   { $botanicalName .= " '" . $cultivar . "'"; }
-    if ($ecotype !== '')    { $botanicalName .= ' [' . $ecotype . ']'; }
-
-    $webName   = pdb_eingabe_web_name($genus, $species, $subspecies, $cultivar, $ecotype);
-    $matchcode = strtoupper(substr($genus, 0, 3) . substr($species, 0, 3) . substr($cultivar, 0, 3));
+    ['genus' => $genus, 'species' => $species, 'subspecies' => $subspecies, 'ecotype' => $ecotype, 'cultivar' => $cultivar,
+     'botanical_name' => $botanicalName, 'web_name' => $webName, 'matchcode' => $matchcode] = $nm;
 
     // --- Bearbeiten oder neu? ---
     $editId = (int)($input['id'] ?? 0);
@@ -278,15 +338,37 @@ function pdb_eingabe_save(SQLite3 $db): array
             ? 'Dieser botanische Name existiert bereits bei einer anderen Pflanze: ' . $botanicalName
             : 'Diese Pflanze existiert bereits: ' . $botanicalName]);
     }
+    // Eigene DB: Namen, die es in der oeffentlichen PDB schon gibt, werden dort aufgenommen statt neu angelegt
+    if ($isOwn && !empty($ctx['master']) && pdb_eingabe_master_duplicate($db, $ctx['master'], $botanicalName, $editId)) {
+        return pdb_eingabe_json(['error' => 'Diese Pflanze gibt es schon in der öffentlichen PDB: ' . $botanicalName
+            . '. Bitte im Sortiment über «Pflanzen aufnehmen» hinzufügen, dann können Sie sie dort anpassen.']);
+    }
 
     $db->exec('BEGIN TRANSACTION');
     try {
+        // Eigene Kopie einer oeffentlichen Pflanze: web_name behalten, damit der Portrait-Link stimmt
+        if ($isOwn && $isEdit && (int)$db->querySingle('SELECT master_plant_id FROM plant_local WHERE plant_id = ' . $editId) > 0) {
+            $oldWeb = (string)$db->querySingle('SELECT web_name FROM plants WHERE id = ' . $editId);
+            if ($oldWeb !== '') {
+                $webName = $oldWeb;
+            }
+        }
+        $newLocalId = 0;
         if ($isEdit) {
             $plantId = $editId;
             $stmt = $db->prepare("UPDATE plants SET genus=:genus, species=:species, subspecies=:subspecies, cultivar=:cultivar, ecotype=:ecotype, botanical_name=:botanical_name, web_name=:web_name, matchcode=:matchcode, notes=:notes, description_short=:description_short, description_long=:description_long, care_instructions=:care_instructions, meta_text=:meta_text, updated_at=datetime('now') WHERE id=:id");
             $stmt->bindValue(':id', $plantId, SQLITE3_INTEGER);
         } else {
-            $stmt = $db->prepare("INSERT INTO plants (genus, species, subspecies, cultivar, ecotype, botanical_name, web_name, matchcode, notes, description_short, description_long, care_instructions, meta_text, created_at, updated_at) VALUES (:genus, :species, :subspecies, :cultivar, :ecotype, :botanical_name, :web_name, :matchcode, :notes, :description_short, :description_long, :care_instructions, :meta_text, datetime('now'), datetime('now'))");
+            $insSql = "INSERT INTO plants (genus, species, subspecies, cultivar, ecotype, botanical_name, web_name, matchcode, notes, description_short, description_long, care_instructions, meta_text, created_at, updated_at) VALUES (:genus, :species, :subspecies, :cultivar, :ecotype, :botanical_name, :web_name, :matchcode, :notes, :description_short, :description_long, :care_instructions, :meta_text, datetime('now'), datetime('now'))";
+            if ($isOwn) {
+                // Rein eigene Pflanze: lokale ID ab 1'000'000, kollidiert nie mit Master-IDs
+                $newLocalId = pdb_userdb_next_local_id($db);
+                $insSql = str_replace(['INSERT INTO plants (', 'VALUES ('], ['INSERT INTO plants (id, ', 'VALUES (:id, '], $insSql);
+            }
+            $stmt = $db->prepare($insSql);
+            if ($isOwn) {
+                $stmt->bindValue(':id', $newLocalId, SQLITE3_INTEGER);
+            }
         }
         $stmt->bindValue(':genus', $genus, SQLITE3_TEXT);
         $stmt->bindValue(':botanical_name', $botanicalName, SQLITE3_TEXT);
@@ -301,7 +383,7 @@ function pdb_eingabe_save(SQLite3 $db): array
         }
         $stmt->execute();
         if (!$isEdit) {
-            $plantId = $db->lastInsertRowID();
+            $plantId = $isOwn ? $newLocalId : $db->lastInsertRowID();
         }
 
         // Beim Bearbeiten: Detailtabellen leeren, unten neu schreiben
@@ -369,14 +451,52 @@ function pdb_eingabe_save(SQLite3 $db): array
             }
         }
 
+        // Eigene DB: Herkunft/Freigabe festhalten; neue Pflanzen kommen gleich ins Sortiment
+        if ($isOwn) {
+            $share = array_key_exists('share', $input) ? (empty($input['share']) ? 0 : 1) : null;
+            if ($isEdit) {
+                $u = $db->prepare("UPDATE plant_local SET locally_changed = 1, updated_at = CURRENT_TIMESTAMP"
+                    . ($share !== null ? ', share = :share' : '') . ' WHERE plant_id = :id');
+                if ($share !== null) {
+                    $u->bindValue(':share', $share, SQLITE3_INTEGER);
+                }
+                $u->bindValue(':id', (int)$plantId, SQLITE3_INTEGER);
+                $u->execute();
+                if ($db->changes() === 0) {
+                    // Pflanze ohne plant_local-Zeile (sollte nicht vorkommen): als eigene Pflanze nachtragen
+                    $l = $db->prepare("INSERT OR IGNORE INTO plant_local (plant_id, master_plant_id, origin, locally_changed, share) VALUES (:id, NULL, 'neu', 1, :share)");
+                    $l->bindValue(':id', (int)$plantId, SQLITE3_INTEGER);
+                    $l->bindValue(':share', $share ?? 1, SQLITE3_INTEGER);
+                    $l->execute();
+                }
+            } else {
+                $l = $db->prepare("INSERT INTO plant_local (plant_id, master_plant_id, origin, locally_changed, share) VALUES (:id, NULL, 'neu', 0, :share)");
+                $l->bindValue(':id', (int)$plantId, SQLITE3_INTEGER);
+                $l->bindValue(':share', $share ?? 1, SQLITE3_INTEGER);
+                $l->execute();
+                $inv = $db->prepare("INSERT INTO plant_inventory (plant_id, status, updated_at) VALUES (:id, 'im_sortiment', CURRENT_TIMESTAMP)");
+                $inv->bindValue(':id', (int)$plantId, SQLITE3_INTEGER);
+                $inv->execute();
+            }
+        }
+
         $db->exec('COMMIT');
+
+        // Stufe 2: Vorschlag an die oeffentliche PDB anlegen, aktualisieren oder zurueckziehen
+        $vorschlag = '';
+        if ($isOwn && !empty($ctx['nursery'])) {
+            $vorschlag = pdb_vorschlag_sync($db, $ctx['nursery'], (int)$plantId, $ctx['master'] ?? null);
+        }
 
         return pdb_eingabe_json([
             'success'        => true,
+            'vorschlag'      => $vorschlag,
             'id'             => (int)$plantId,
             'botanical_name' => $botanicalName,
             'web_name'       => $webName,
-            'message'        => ($isEdit ? 'Änderungen gespeichert: ' : 'Pflanze gespeichert: ') . $botanicalName,
+            'message'        => ($isEdit ? 'Änderungen gespeichert: ' : 'Pflanze gespeichert: ') . $botanicalName
+                              . ($isOwn && !$isEdit ? ' - sie ist jetzt in Ihrem Sortiment.' : '')
+                              . pdb_eingabe_vorschlag_text($vorschlag),
         ]);
     } catch (\Throwable $e) {
         $db->exec('ROLLBACK');
@@ -388,6 +508,68 @@ function pdb_eingabe_save(SQLite3 $db): array
 // ============================================================
 // Hilfsfunktionen
 // ============================================================
+
+/**
+ * Namensteile und abgeleitete Namen (botanischer Name, web_name, Matchcode) aus den Eingabedaten.
+ * Gemeinsam fuer das Speichern und die Uebernahme von Vorschlaegen (vorschlaege.php).
+ * @return array<string,string> bei Fehler ['error' => Text]
+ */
+function pdb_eingabe_build_names(array $input): array
+{
+    $genus = pdb_eingabe_str($input, 'genus');
+    if ($genus === '') {
+        return ['error' => 'Gattung ist ein Pflichtfeld'];
+    }
+
+    $genus      = pdb_eingabe_ucfirst(mb_strtolower($genus));
+    $species    = mb_strtolower(pdb_eingabe_str($input, 'species'));
+    $subspecies = pdb_eingabe_str($input, 'subspecies');
+    $ecotype    = pdb_eingabe_str($input, 'ecotype');
+    $cultivarOriginal = pdb_eingabe_str($input, 'cultivar');
+
+    foreach ([$genus, $species, $subspecies, $cultivarOriginal, $ecotype] as $part) {
+        if (mb_strlen($part) > 120) {
+            return ['error' => 'Ein Namensfeld ist zu lang (max. 120 Zeichen).'];
+        }
+    }
+
+    // Deutsche Umlaute in der Sorte nach botanischem Standard umschreiben
+    $cultivar = pdb_eingabe_convert_umlauts($cultivarOriginal);
+
+    $botanicalName = $genus;
+    if ($species !== '')    { $botanicalName .= ' ' . $species; }
+    if ($subspecies !== '') { $botanicalName .= ' subsp. ' . mb_strtolower($subspecies); }
+    if ($cultivar !== '')   { $botanicalName .= " '" . $cultivar . "'"; }
+    if ($ecotype !== '')    { $botanicalName .= ' [' . $ecotype . ']'; }
+
+    return [
+        'genus'          => $genus,
+        'species'        => $species,
+        'subspecies'     => $subspecies,
+        'ecotype'        => $ecotype,
+        'cultivar'       => $cultivar,
+        'botanical_name' => $botanicalName,
+        'web_name'       => pdb_eingabe_web_name($genus, $species, $subspecies, $cultivar, $ecotype),
+        'matchcode'      => strtoupper(substr($genus, 0, 3) . substr($species, 0, 3) . substr($cultivar, 0, 3)),
+    ];
+}
+
+/** Satz zum Stand des Vorschlags an die oeffentliche PDB, fuer die Meldung nach dem Speichern. */
+function pdb_eingabe_vorschlag_text(string $s): string
+{
+    switch ($s) {
+        case 'offen':
+            return ' Der Vorschlag liegt zur Prüfung bei den Editoren der öffentlichen PDB.';
+        case 'zurueckgezogen':
+            return ' Der Vorschlag an die öffentliche PDB wurde zurückgezogen.';
+        case 'stammdaten_fehlen':
+            return ' Der Vorschlag konnte gerade nicht eingereicht werden und wird beim nächsten Speichern erneut versucht.';
+        case 'fehler':
+            return ' Der Vorschlag an die öffentliche PDB konnte nicht eingereicht werden.';
+        default:
+            return '';
+    }
+}
 
 /** Skalaren Wert als getrimmten String lesen, sonst leer. */
 function pdb_eingabe_str(array $a, string $key): string

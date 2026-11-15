@@ -11,6 +11,8 @@ Offene Pflanzendatenbank für Knospe-zertifizierte Gärtnereien (Bio Suisse) und
 **Gärtnereien** (Konto mit eigener Datenbank)
 - Sortiment und Bestand verwalten (Topfgrösse, Menge, Preis, Standort, oXs-Felder)
 - Export des eigenen Bestands als CSV
+- Pflanzen aus den Stammdaten aufnehmen: Die ganze Pflanze wird in die eigene Datenbank kopiert und kann dort ergänzt werden
+- Eigene Pflanzen erfassen und die Eigenschaften der Kopien ändern. Mit gesetztem Haken wird die Pflanze den Editoren zur Aufnahme in die öffentlichen Stammdaten vorgeschlagen; Status und Begründung einer Ablehnung sind in der Bestandsliste sichtbar
 - Anfragelisten (siehe unten)
 
 **Gartenplaner und Gartenbau** (Konto ohne eigenen Bestand)
@@ -18,18 +20,18 @@ Offene Pflanzendatenbank für Knospe-zertifizierte Gärtnereien (Bio Suisse) und
 
 **Anfrageliste**: Wer Pflanzen oder Vermehrungsmaterial zukaufen will und nicht weiss, ob es sie in Bioqualität gibt, stellt eine Liste zusammen. Pflanzen werden aus der Datenbank gewählt, frei eingegeben oder als Liste eingefügt. Die Liste wird als Excel-Datei mit Auswahlfeldern für die Antwort der Anbieter oder als CSV exportiert. Ist eine Pflanze bei einer Gärtnerei öffentlich verfügbar, erscheint der Hinweis schon bei der Listenerstellung. Die PDB versendet nichts selbst, die Datei wird per E-Mail weitergegeben.
 
-**Editoren** bearbeiten die öffentlichen Stammdaten (Eingabe von Pflanzen mit allen Aufklapp-Bereichen).
+**Editoren** bearbeiten die öffentlichen Stammdaten (Eingabe von Pflanzen mit allen Aufklapp-Bereichen) und prüfen die Vorschläge der Gärtnereien. Die Prüfmaske zeigt nur die Abweichungen zum Master, Werte lassen sich korrigieren, übernommen wird Feld für Feld oder mit Begründung abgelehnt. Die Namen bestehender Pflanzen sind dabei gesperrt.
 
 **Konten** gibt es nur mit Zugangscode. Die Rollen laufen über Grav-Gruppen: `user` (Gärtnerei), `planer`, `editor`; der technische Admin arbeitet im Grav-Backend. Besucher ohne Konto bekommen kein Cookie, und es werden keine Inhalte von fremden Servern geladen.
 
-**Noch nicht gebaut**: Meldungen an organicxseeds.ch, Etikettendruck, lokale Kopie von Stammdaten mit Änderungsvorschlägen, Hochladen der beantworteten Anfrageliste, PDF-Ausgabe. Der Stand aller Anforderungen steht im [Pflichtenheft](Pflichtenheft.md).
+**Noch nicht gebaut**: Meldungen an organicxseeds.ch, Etikettendruck, Nachziehen von Änderungen aus den Stammdaten in die Kopien der Gärtnereien, Herunterladen der eigenen Datenbank für den lokalen Betrieb, Hochladen der beantworteten Anfrageliste, PDF-Ausgabe. Der Stand aller Anforderungen steht im [Pflichtenheft](Pflichtenheft.md).
 
 ## Technik
 
 - [Grav](https://getgrav.org) 2.2 (PHP 8.3 oder neuer, Erweiterungen `sqlite3`, `zip`, `mbstring`, `gd`)
 - Kind-Theme `pdb-theme` von Quark 2, Seiten dynamisch per [htmx](https://htmx.org)
 - Plugin `pdb-api`: stellt die Endpunkte `/pdb-api/<name>` über Gravs eigenen Request-Zyklus bereit. Die Dateien in `user/api/` sind reine Funktionsbibliotheken und nicht direkt per HTTP erreichbar.
-- SQLite: eine zentrale Stammdaten-Datenbank `plants.db` und pro Konto eine eigene Datei `user/data/sqlite/<konto>.db`. Der Datenbankpfad kommt immer aus dem Login, nie aus dem Browser.
+- SQLite: eine zentrale Stammdaten-Datenbank `plants.db`, pro Konto eine eigene Datei `user/data/sqlite/<konto>.db` (mit den kopierten und eigenen Pflanzen) und die Vorschlagsliste `vorschlag.db`, die der Code selbst anlegt. Der Datenbankpfad kommt immer aus dem Login, nie aus dem Browser.
 - Excel-Export ohne Zusatzbibliothek (OOXML über `ZipArchive`)
 
 ## Installation
@@ -43,13 +45,13 @@ Offene Pflanzendatenbank für Knospe-zertifizierte Gärtnereien (Bio Suisse) und
 6. Nach der Installation prüfen, dass `user/data/` und `user/accounts/` nicht per HTTP erreichbar sind (zum Beispiel muss `/user/data/sqlite/plants.db` mit 403 antworten).
 7. Betreiberangaben anpassen: `user/pages/11.impressum` und `user/pages/12.datenschutz` (beide sind Vorlagen mit Platzhaltern), `user/pages/01.home` und die Fusszeile `user/themes/pdb-theme/templates/partials/footer.html.twig`.
 
-Die Datenbank einer Gärtnerei legt die Registrierung selbst an. Wer das Recht `site.pdb_editor` (Stammdaten bearbeiten) bekommen soll, wird im Backend der Gruppe `editor` zugewiesen.
+Die Datenbank einer Gärtnerei legt die Registrierung selbst an, die Pflanzentabellen entstehen beim ersten Zugriff. Das Verzeichnis `user/data/sqlite/` muss für PHP beschreibbar sein. Wer das Recht `site.pdb_editor` (Stammdaten bearbeiten) bekommen soll, wird im Backend der Gruppe `editor` zugewiesen.
 
 ## Aufbau des Repositorys
 
 ```
 user/                  Kopiervorlage für das user/-Verzeichnis von Grav
-  api/                 Endpunkte (liste, portrait, eingabe, bestand, standorte, export, anfrage, register, ...)
+  api/                 Endpunkte (liste, portrait, eingabe, vorschlaege, bestand, standorte, export, anfrage, register, ...)
   plugins/pdb-api/     Plugin mit Routen und den Rechten site.pdb_editor und site.pdb_nursery
   themes/pdb-theme/    Kind-Theme: Templates, CSS, JS, lokale Schriften und Icons
   pages/               Seiten (Impressum und Datenschutz als Vorlagen)

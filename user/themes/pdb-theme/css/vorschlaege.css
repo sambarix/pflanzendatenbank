@@ -1,0 +1,72 @@
+/* Vorschlaege der Gaertnereien (Editor-Seite, Umbau A Stufe 2) */
+.pdb-vs-page { max-width: 1100px; margin: 0 auto; padding: 0 10px 40px; font-family: 'Liberation Sans', Arial, sans-serif; color: #000; }
+.pdb-vs-title { font-size: 22px; font-weight: bold; color: #4B8223; margin: 0 0 8px; }
+.pdb-vs-intro { margin: 0 0 16px; color: #444; font-size: 14px; }
+
+.pdb-vs-msg { padding: 12px 16px; border-radius: 4px; margin-bottom: 16px; font-size: 14px; font-weight: bold; }
+.pdb-vs-msg-ok { background: #e8f5e9; border: 2px solid #4B8223; color: #2e7d32; }
+.pdb-vs-msg-err { background: #fce4ec; border: 2px solid #c62828; color: #c62828; }
+
+/* Liste */
+.pdb-vs-tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+.pdb-vs-tab { border: 1px solid #ccc; background: #fff; border-radius: 4px; padding: 6px 12px; cursor: pointer; font-size: 14px; }
+.pdb-vs-tab:hover { background: #f0f4ec; }
+.pdb-vs-tab-active { background: #4B8223; color: #fff; border-color: #4B8223; }
+.pdb-vs-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.pdb-vs-table th { text-align: left; background: #f0f4ec; padding: 8px 10px; border-bottom: 2px solid #4B8223; }
+.pdb-vs-table td { padding: 8px 10px; border-bottom: 1px solid #e3e3e3; vertical-align: top; }
+.pdb-vs-table tr.pdb-vs-row { cursor: pointer; }
+.pdb-vs-table tr.pdb-vs-row:hover td { background: #f7faf4; }
+.pdb-vs-empty { padding: 20px; color: #666; text-align: center; border: 1px dashed #ccc; border-radius: 4px; }
+
+.pdb-vs-chip { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 12px; font-weight: bold; white-space: nowrap; }
+.pdb-vs-chip-offen { background: #fff3cd; color: #7a5b00; }
+.pdb-vs-chip-uebernommen { background: #e8f5e9; color: #2e7d32; }
+.pdb-vs-chip-abgelehnt { background: #fce4ec; color: #c62828; }
+.pdb-vs-chip-zurueckgezogen { background: #eee; color: #555; }
+.pdb-vs-chip-neu { background: #e3f2fd; color: #0d47a1; }
+.pdb-vs-chip-aenderung { background: #f3e5f5; color: #6a1b9a; }
+
+/* Pruefmaske */
+.pdb-vs-back { background: none; border: 0; color: #4B8223; cursor: pointer; font-size: 14px; padding: 0; margin-bottom: 10px; text-decoration: underline; }
+.pdb-vs-head { margin-bottom: 12px; }
+.pdb-vs-head h2 { margin: 0 0 4px; font-size: 20px; font-style: italic; }
+.pdb-vs-meta { font-size: 14px; color: #444; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.pdb-vs-warn { background: #fff8e1; border: 1px solid #f0c36d; border-radius: 4px; padding: 8px 12px; margin: 8px 0; font-size: 14px; }
+.pdb-vs-info { background: #f0f4ec; border: 1px solid #c9d9bb; border-radius: 4px; padding: 8px 12px; margin: 8px 0; font-size: 14px; }
+
+.pdb-vs-section { border: 1px solid #ddd; border-radius: 4px; margin-bottom: 10px; background: #fff; }
+.pdb-vs-section > h3 { margin: 0; padding: 8px 12px; font-size: 15px; background: #f0f4ec; border-bottom: 1px solid #ddd; border-radius: 4px 4px 0 0; }
+.pdb-vs-grid { width: 100%; border-collapse: collapse; font-size: 14px; }
+.pdb-vs-grid th { text-align: left; font-weight: normal; color: #666; padding: 6px 10px; border-bottom: 1px solid #eee; font-size: 12px; }
+.pdb-vs-grid td { padding: 6px 10px; border-bottom: 1px solid #f0f0f0; vertical-align: top; }
+.pdb-vs-grid td.pdb-vs-c-label { width: 18%; font-weight: bold; }
+.pdb-vs-grid td.pdb-vs-c-master { width: 30%; color: #333; white-space: pre-wrap; word-break: break-word; }
+.pdb-vs-grid td.pdb-vs-c-value { width: 40%; }
+.pdb-vs-grid td.pdb-vs-c-take { width: 12%; text-align: center; }
+.pdb-vs-none { color: #999; font-style: italic; }
+.pdb-vs-locked { color: #777; }
+.pdb-vs-lockhint { display: block; font-size: 12px; color: #999; }
+.pdb-vs-grid input[type=text], .pdb-vs-grid input[type=number], .pdb-vs-grid select, .pdb-vs-grid textarea {
+    width: 100%; box-sizing: border-box; padding: 5px 7px; border: 1px solid #bbb; border-radius: 3px; font: inherit;
+}
+.pdb-vs-grid textarea { min-height: 64px; }
+.pdb-vs-multi { display: flex; flex-wrap: wrap; gap: 4px 12px; }
+.pdb-vs-multi label { font-size: 13px; white-space: nowrap; }
+.pdb-vs-row-on td { background: #f7faf4; }
+.pdb-vs-list-box { padding: 8px 12px; }
+.pdb-vs-list-box label { display: block; padding: 2px 0; }
+.pdb-vs-sub { font-size: 12px; color: #777; margin: 6px 0 2px; }
+
+.pdb-vs-actions { position: sticky; bottom: 0; background: #fff; border-top: 2px solid #4B8223; padding: 10px 0; margin-top: 14px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.pdb-vs-actions input[type=text] { flex: 1 1 260px; padding: 7px 9px; border: 1px solid #bbb; border-radius: 3px; font: inherit; }
+.pdb-vs-btn { border: 0; border-radius: 4px; padding: 9px 16px; font-size: 14px; font-weight: bold; cursor: pointer; }
+.pdb-vs-btn-ok { background: #4B8223; color: #fff; }
+.pdb-vs-btn-ok:disabled { background: #a9c490; cursor: not-allowed; }
+.pdb-vs-btn-no { background: #fff; color: #c62828; border: 1px solid #c62828; }
+.pdb-vs-link { background: none; border: 0; color: #4B8223; cursor: pointer; text-decoration: underline; font-size: 13px; padding: 0 6px; }
+
+@media (max-width: 700px) {
+    .pdb-vs-grid td.pdb-vs-c-master { display: none; }
+    .pdb-vs-grid th:nth-child(2) { display: none; }
+}

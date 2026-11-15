@@ -1,6 +1,9 @@
 // Grav 2: Die Basis-URL kommt aus dem Template (window.PDB_BASE), damit die Seite auch in einem Unterordner laeuft (z.B. /pdb22).
 var PDB_BASE = (window.PDB_BASE || '').replace(/\/+$/, '');
 var PDB_API  = PDB_BASE + '/pdb-api/eingabe';
+// Ziel: 'public' = Stammdaten (Editor), 'own' = eigene Gaertnerei-DB. Die Rechte prueft der Server, nicht dieser Wert.
+var PDB_TARGET = (window.PDB_TARGET === 'own') ? 'own' : 'public';
+var PDB_TQ = (PDB_TARGET === 'own') ? '&target=own' : '';
 
 /**
  * PDB Eingabe - Accordion, Live Preview, Autocomplete, Save
@@ -114,7 +117,7 @@ function pdbCheckDuplicate(botanicalName) {
     el.innerHTML = '&#8987; Prüfe...';
 
     var xhr = new XMLHttpRequest();
-    var dupUrl = PDB_API + '?action=check_duplicate&botanical_name=' + encodeURIComponent(botanicalName);
+    var dupUrl = PDB_API + '?action=check_duplicate' + PDB_TQ + '&botanical_name=' + encodeURIComponent(botanicalName);
     if (pdbEditId) { dupUrl += '&exclude_id=' + pdbEditId; }
     xhr.open('GET', dupUrl);
     xhr.onload = function() {
@@ -123,7 +126,11 @@ function pdbCheckDuplicate(botanicalName) {
                 var data = JSON.parse(xhr.responseText);
                 if (data.exists) {
                     el.className = 'pdb-duplicate-error';
-                    el.innerHTML = '&#10007; Duplikat! Existiert bereits (ID: ' + data.id + ')';
+                    if (data.where === 'public') {
+                        el.innerHTML = '&#10007; Gibt es schon in der öffentlichen PDB (ID: ' + data.id + '). Bitte im Sortiment über «Pflanzen aufnehmen» hinzufügen.';
+                    } else {
+                        el.innerHTML = '&#10007; Duplikat! Existiert bereits (ID: ' + data.id + ')';
+                    }
                 } else {
                     el.className = 'pdb-duplicate-ok';
                     el.innerHTML = '&#10003; Kein Duplikat';
@@ -154,7 +161,7 @@ function pdbAutocompleteGenus(input) {
 
     acGenusTimer = setTimeout(function() {
         var xhr = new XMLHttpRequest();
-        xhr.open('GET', PDB_API + '?action=autocomplete_genus&term=' + encodeURIComponent(term));
+        xhr.open('GET', PDB_API + '?action=autocomplete_genus' + PDB_TQ + '&term=' + encodeURIComponent(term));
         xhr.onload = function() {
             if (xhr.status === 200) {
                 try {
@@ -199,7 +206,7 @@ var pdbEditId = 0;
 
 function pdbLoadPlant(id) {
     var xhr = new XMLHttpRequest();
-    xhr.open('GET', PDB_API + '?action=load_plant&id=' + id);
+    xhr.open('GET', PDB_API + '?action=load_plant' + PDB_TQ + '&id=' + id);
     xhr.onload = function() {
         if (xhr.status === 200) {
             try {
@@ -215,6 +222,22 @@ function pdbLoadPlant(id) {
 function pdbFillForm(data) {
     pdbResetForm();
     pdbEditId = data.id || 0;
+
+    // Eigene DB: Freigabe-Schalter der Pflanze
+    var shareBox = document.getElementById('f-share');
+    if (shareBox && data.local) { shareBox.checked = !!parseInt(data.local.share, 10); }
+    var shareStatus = document.getElementById('pdb-share-status');
+    if (shareStatus) {
+        var vs = data.vorschlag;
+        var vsLabels = {
+            offen: 'Ihr Vorschlag liegt bei den Editoren zur Prüfung.',
+            uebernommen: 'Ihr Vorschlag wurde in die öffentliche PDB übernommen.',
+            abgelehnt: 'Ihr letzter Vorschlag wurde nicht übernommen.',
+            zurueckgezogen: 'Der Vorschlag ist zurückgezogen.'
+        };
+        shareStatus.textContent = (vs && vsLabels[vs.status])
+            ? vsLabels[vs.status] + ((vs.status === 'abgelehnt' && vs.note) ? ' Hinweis: ' + vs.note : '') : '';
+    }
 
     // Edit-Modus UI
     document.querySelector('.pdb-eingabe-title').textContent = 'Pflanze bearbeiten';
@@ -441,7 +464,7 @@ function pdbRemoveRow(btn) {
 // ===========================
 function pdbLoadCategoryOptions() {
     var xhr = new XMLHttpRequest();
-    xhr.open('GET', PDB_API + '?action=category_tree');
+    xhr.open('GET', PDB_API + '?action=category_tree' + PDB_TQ);
     xhr.onload = function() {
         if (xhr.status === 200) {
             try {
@@ -589,13 +612,15 @@ function pdbSave() {
     var data = pdbCollectData();
     data.action = 'save';
     if (pdbEditId) { data.id = pdbEditId; }
+    var shareEl = document.getElementById('f-share');
+    if (shareEl) { data.share = shareEl.checked ? 1 : 0; }
 
     // Disable button
     btn.disabled = true;
     btn.textContent = 'Speichert...';
 
     var xhr = new XMLHttpRequest();
-    xhr.open('POST', PDB_API + '?action=save');
+    xhr.open('POST', PDB_API + '?action=save' + PDB_TQ);
     xhr.setRequestHeader('Content-Type', 'application/json');
     xhr.onload = function() {
         btn.disabled = false;
@@ -607,10 +632,10 @@ function pdbSave() {
                 if (result.success) {
                     pdbFormDirty = false;
                     pdbShowMessage(result.message, 'success');
-                    // Im Edit-Modus: zurück zur Liste, sonst Formular leeren
+                    // Im Edit-Modus: zurück zur Liste (eigene DB: zum Sortiment), sonst Formular leeren
                     setTimeout(function() {
                         if (pdbEditId) {
-                            window.location.href = PDB_BASE + '/liste';
+                            window.location.href = PDB_BASE + (PDB_TARGET === 'own' ? '/bestand' : '/liste');
                         } else {
                             pdbResetForm();
                         }

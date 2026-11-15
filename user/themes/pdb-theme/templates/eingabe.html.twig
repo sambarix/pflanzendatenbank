@@ -12,9 +12,17 @@
 {% endblock %}
 
 {% block content %}
-<script>window.PDB_BASE = '{{ base_url_relative|e('js') }}';</script>
+{# Ziel steht im Seitenkopf (pdb_target: own = eigene Datenbank); die Rechte prueft die API serverseitig #}
+{% set pdbTarget = (page.header.pdb_target ?? 'public') == 'own' ? 'own' : 'public' %}
+<script>window.PDB_BASE = '{{ base_url_relative|e('js') }}'; window.PDB_TARGET = '{{ pdbTarget }}';</script>
 <div class="pdb-eingabe-container">
     <h1 class="pdb-eingabe-title">Neue Pflanze erfassen</h1>
+    {% if pdbTarget == 'own' %}
+    <p class="pdb-eingabe-sub">Die Pflanze wird in Ihrer eigenen Datenbank gespeichert und erscheint gleich in Ihrem Sortiment.
+        Pflanzen, die es in der öffentlichen Datenbank schon gibt, nehmen Sie im Sortiment über «Pflanzen aufnehmen» auf und passen sie dort an.</p>
+    {% else %}
+    <p class="pdb-eingabe-sub">Die Pflanze wird in der öffentlichen Pflanzendatenbank gespeichert.</p>
+    {% endif %}
 
     {# === SUCCESS / ERROR MESSAGE === #}
     <div id="pdb-message" class="pdb-message" style="display:none"></div>
@@ -955,6 +963,14 @@
     {# SAVE BUTTON                                                  #}
     {# ============================================================ #}
     <div class="pdb-save-bar">
+        {% if pdbTarget == 'own' %}
+        <div class="pdb-share-box">
+            <label><input type="checkbox" id="f-share" checked> Für die öffentliche Pflanzendatenbank vorschlagen</label>
+            <span class="pdb-share-hint">Die Editoren der öffentlichen Datenbank prüfen Ihren Vorschlag und übernehmen, was passt.
+                Die Pflanze bleibt in jedem Fall in Ihrer Datenbank, auch wenn Sie nichts vorschlagen.</span>
+            <span class="pdb-share-status" id="pdb-share-status"></span>
+        </div>
+        {% endif %}
         <button type="button" id="pdb-save-btn" class="pdb-btn-save" onclick="pdbSave()">
             Pflanze speichern
         </button>

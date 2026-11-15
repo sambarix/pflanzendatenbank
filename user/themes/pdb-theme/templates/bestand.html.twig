@@ -47,6 +47,7 @@ function pdbReloadList() {
                    hx-target="#pdb-search-results">
         </div>
         <div id="pdb-search-results" class="pdb-search-results"></div>
+        <div class="pdb-bestand-newlink">Pflanze nicht gefunden? <a href="{{ base_url_relative }}/pflanze">Neue Pflanze erfassen</a></div>
         <div id="pdb-aufnehmen-bar" class="pdb-aufnehmen-bar" style="display:none">
             <button type="button" class="pdb-btn" onclick="pdbAufnehmen()">
                 Ausgewählte aufnehmen (<span id="pdb-selected-count">0</span>)
@@ -65,6 +66,7 @@ function pdbReloadList() {
     <div id="pdb-edit-panel" class="pdb-edit-panel" style="display:none">
         <div class="pdb-edit-header">
             <strong id="pdb-edit-title">Pflanze bearbeiten</strong>
+            <a id="pdb-edit-plantlink" class="pdb-btn pdb-btn-secondary" href="{{ base_url_relative }}/pflanze">Pflanzeneigenschaften bearbeiten</a>
             <button type="button" class="pdb-btn pdb-btn-secondary" onclick="pdbEditClose()">Schliessen</button>
         </div>
         <input type="hidden" id="pdb-edit-inv-id">
@@ -345,6 +347,7 @@ function pdbBestandEdit(invId) {
             var d = res.data;
             document.getElementById('pdb-edit-inv-id').value       = invId;
             document.getElementById('pdb-edit-title').textContent  = d.botanical_name;
+            document.getElementById('pdb-edit-plantlink').href     = '{{ base_url_relative }}/pflanze?edit=' + encodeURIComponent(d.plant_id);
             document.getElementById('pdb-edit-pot').value          = d.pot_size_code || '';
             document.getElementById('pdb-edit-qty').value          = d.quantity !== null ? d.quantity : '';
             document.getElementById('pdb-edit-status').value       = d.status || 'im_sortiment';

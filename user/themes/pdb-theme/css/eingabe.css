@@ -624,3 +624,11 @@
     cursor: pointer;
     margin: 0;
 }
+
+/* Umbau A: Zielhinweis unter dem Titel und Freigabe-Schalter (eigene Datenbank) */
+.pdb-eingabe-sub { margin: -4px 0 18px 0; color: #555; font-size: 14px; max-width: 760px; }
+.pdb-share-box { margin: 0 0 16px 0; text-align: left; max-width: 760px; margin-left: auto; margin-right: auto; }
+.pdb-share-box label { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; cursor: pointer; }
+.pdb-share-hint { display: block; margin-top: 4px; font-size: 13px; color: #666; }
+
+.pdb-share-status { display: block; margin-top: 4px; font-size: 13px; font-weight: bold; color: #4B8223; }

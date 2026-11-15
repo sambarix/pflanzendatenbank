@@ -137,3 +137,14 @@
     color: #4B8223;
 }
 .pdb-edit-panel .pdb-btn { margin-right: 6px; }
+
+/* Umbau A: Marker fuer Pflanzen, die nur in der eigenen Datenbank existieren */
+.pdb-local-badge { display: inline-block; margin-left: .4em; padding: 0 .45em; font-size: .72em; line-height: 1.5; color: #5d4037; background: #efebe9; border: 1px solid #d7ccc8; border-radius: 3px; vertical-align: middle; white-space: nowrap; }
+
+.pdb-bestand-newlink { margin: 4px 0 10px; font-size: 13px; color: #666; }
+
+/* Stand des Vorschlags an die oeffentliche PDB (Umbau A, Stufe 2) */
+.pdb-vs { display: inline-block; margin-left: 6px; padding: 0 7px; border-radius: 9px; font-size: 11px; font-weight: bold; white-space: nowrap; vertical-align: middle; }
+.pdb-vs-offen { background: #fff3cd; color: #7a5b00; }
+.pdb-vs-uebernommen { background: #e8f5e9; color: #2e7d32; }
+.pdb-vs-abgelehnt { background: #fce4ec; color: #c62828; }

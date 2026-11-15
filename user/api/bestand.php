@@ -1,7 +1,9 @@
 <?php
 /**
  * PDB Bestand API (Grav 2)
- * Liest/schreibt die Gaertnerei-DB des eingeloggten Benutzers, gejoint mit plants.db via ATTACH.
+ * Liest/schreibt die Gaertnerei-DB des eingeloggten Benutzers. Die Pflanzen selbst liegen (seit Umbau A)
+ * als ganze Kopie in dieser DB (Tabellen plants, plant_names, ... und plant_local). Nur "search" und
+ * "aufnehmen" lesen die Stammdaten-DB plants.db (nur lesend), alle anderen Actions kommen ohne sie aus.
  * Reine Bibliotheksdatei - wird vom pdb-api-Plugin eingebunden, NIE direkt per HTTP aufgerufen.
  * Der DB-Pfad kommt aus dem Login (pdb_current_nursery), nicht aus dem Browser.
  *
@@ -26,13 +28,18 @@ function pdb_api_bestand_run(\Grav\Common\Grav $grav): array
         return [$ct, $nursery['status']];
     }
     $nurseryDb    = $nursery['path'];
-    $stammdatenDb = GRAV_ROOT . '/user/data/sqlite/plants.db';
-    if (!file_exists($stammdatenDb)) {
-        echo json_encode(['error' => 'Stammdaten-DB nicht gefunden.']);
-        return [$ct, 500];
-    }
+    $stammdatenDb = pdb_userdb_master_path();
 
     $action = $_REQUEST['action'] ?? '';
+
+    // Nur Suche und Aufnehmen brauchen die Stammdaten-DB
+    if (in_array($action, ['search', 'aufnehmen'], true) && !file_exists($stammdatenDb)) {
+        $ct = $action === 'search' ? 'text/html; charset=utf-8' : $ct;
+        echo $action === 'search'
+            ? '<div class="pdb-search-hint">Stammdaten-DB nicht gefunden.</div>'
+            : json_encode(['error' => 'Stammdaten-DB nicht gefunden.']);
+        return [$ct, 500];
+    }
 
 // ============================================================
 // ACTION: search — Suche in plants.db
@@ -107,37 +114,60 @@ if ($action === 'aufnehmen') {
         return [$ct, 200];
     }
 
+    $master = pdb_userdb_open_master();
+    if (!$master) {
+        echo json_encode(['error' => 'Stammdaten-DB nicht lesbar.']);
+        return [$ct, 500];
+    }
     $db = new SQLite3($nurseryDb);
     $db->enableExceptions(true);
+    $db->busyTimeout(3000);
     $db->exec('PRAGMA foreign_keys=ON');
 
+    // Pro Pflanze: ganze Pflanze aus plants.db in die eigene DB kopieren (falls noch nicht da),
+    // danach den Bestandseintrag anlegen (leer, wird später befüllt). Alles in einer Transaktion.
     $added = 0;
     $skipped = 0;
-    foreach ($ids as $pid) {
-        $pid = (int)$pid;
-        if ($pid <= 0) continue;
-        // Prüfen ob bereits vorhanden
-        $exists = $db->querySingle(
-            "SELECT COUNT(*) FROM plant_inventory WHERE plant_id = $pid"
-        );
-        if ($exists > 0) {
-            $skipped++;
-            continue;
+    $missing = 0;
+    $db->exec('BEGIN IMMEDIATE');
+    try {
+        foreach ($ids as $pid) {
+            $pid = (int)$pid;
+            if ($pid <= 0) continue;
+            [$local] = pdb_userdb_take_from_master($db, $master, $pid);
+            if ($local <= 0) {
+                $missing++;
+                continue;
+            }
+            $exists = (int)$db->querySingle("SELECT COUNT(*) FROM plant_inventory WHERE plant_id = $local");
+            if ($exists > 0) {
+                $skipped++;
+                continue;
+            }
+            $db->exec(
+                "INSERT INTO plant_inventory (plant_id, status, updated_at)
+                 VALUES ($local, 'im_sortiment', CURRENT_TIMESTAMP)"
+            );
+            $added++;
         }
-        // Eintrag anlegen (leer, wird später befüllt)
-        $db->exec(
-            "INSERT INTO plant_inventory (plant_id, status, updated_at)
-             VALUES ($pid, 'im_sortiment', CURRENT_TIMESTAMP)"
-        );
-        $added++;
+        $db->exec('COMMIT');
+    } catch (\Throwable $e) {
+        try { $db->exec('ROLLBACK'); } catch (\Throwable $e2) { /* nichts offen */ }
+        error_log('PDB aufnehmen: ' . $e->getMessage());
+        $db->close();
+        $master->close();
+        echo json_encode(['error' => 'Aufnehmen fehlgeschlagen. Es wurde nichts übernommen.']);
+        return [$ct, 500];
     }
     $db->close();
+    $master->close();
 
     echo json_encode([
         'success' => true,
         'added'   => $added,
         'skipped' => $skipped,
-        'message' => "$added Pflanze(n) aufgenommen" . ($skipped ? ", $skipped bereits vorhanden" : "") . "."
+        'message' => "$added Pflanze(n) aufgenommen" . ($skipped ? ", $skipped bereits vorhanden" : "")
+                   . ($missing ? ", $missing nicht gefunden" : "") . "."
     ]);
     return [$ct, 200];
 }
@@ -152,12 +182,10 @@ if ($action === 'list') {
         $db = new SQLite3($nurseryDb, SQLITE3_OPEN_READONLY);
         $db->enableExceptions(true);
         $db->busyTimeout(3000);
-        $sPath = SQLite3::escapeString($stammdatenDb);
-        $db->exec("ATTACH DATABASE '$sPath' AS sd");
     } catch (\Throwable $e) {
-        echo '<tbody><tr><td colspan="10" class="pdb-no-results" style="color:#c62828">DB-Fehler: ' . htmlspecialchars($e->getMessage())
-           . '<br>plants.db lesbar: ' . (is_readable($stammdatenDb) ? 'JA' : 'NEIN')
-           . '</td></tr></tbody>';
+        error_log('PDB bestand list: ' . $e->getMessage());
+        echo '<tbody><tr><td colspan="10" class="pdb-no-results" style="color:#c62828">DB-Fehler: '
+           . htmlspecialchars($e->getMessage()) . '</td></tr></tbody>';
         return [$ct, 200];
     }
 
@@ -165,13 +193,15 @@ if ($action === 'list') {
         SELECT pi.id, pi.plant_id, pi.pot_size_code, pi.quantity,
                pi.status, pi.price_chf, pi.location_id, pi.is_public,
                pi.oxs_offer_type, pi.oxs_offer_bio, pi.published_organicxseeds,
-               sd.plants.botanical_name, sd.plants.web_name,
-               sd.plant_names.name_de
+               p.botanical_name, p.web_name,
+               n.name_de,
+               pl.master_plant_id
         FROM plant_inventory pi
-        JOIN sd.plants ON pi.plant_id = sd.plants.id
-        LEFT JOIN sd.plant_names ON pi.plant_id = sd.plant_names.plant_id
+        JOIN plants p ON pi.plant_id = p.id
+        LEFT JOIN plant_names n ON pi.plant_id = n.plant_id
+        LEFT JOIN plant_local pl ON pl.plant_id = p.id
         GROUP BY pi.id
-        ORDER BY sd.plants.botanical_name
+        ORDER BY p.botanical_name
     ");
 
     // Alle Standorte für Pfad-Aufbau vorladen
@@ -194,6 +224,7 @@ if ($action === 'list') {
     }
 
     $baseUrl = rtrim($grav['uri']->rootUrl(), '/');
+    $vorStatus = pdb_vorschlag_status_for(basename($nurseryDb));
 
     $statusLabels = [
         'verkaufsfertig' => 'Verkaufsfertig',
@@ -238,9 +269,14 @@ if ($action === 'list') {
         }
 
         $editLink = '<a class="pdb-edit-btn" href="#" onclick="pdbBestandEdit(' . $id . '); return false;" title="Bearbeiten" aria-label="Bearbeiten">' . $editSvg . '</a> ';
-        $nameCell = $webName !== ''
+        // Portrait gibt es nur für Pflanzen, die es auch in der öffentlichen PDB gibt
+        $hasMaster = !empty($row['master_plant_id']);
+        $nameCell = ($webName !== '' && $hasMaster)
             ? '<a href="' . $baseUrl . '/portrait?plant=' . $webName . '">' . $name . '</a>'
-            : $name;
+            : $name . ' <span class="pdb-local-badge" title="Nur in Ihrer Datenbank, nicht in der öffentlichen PDB">eigene</span>';
+        if (isset($vorStatus[(int)$row['plant_id']])) {
+            $nameCell .= pdb_vorschlag_badge_html($vorStatus[(int)$row['plant_id']]);
+        }
         $removeLink = '<a class="pdb-remove-btn" href="#" onclick="pdbBestandRemove(' . $id . '); return false;" title="Aus dem Sortiment entfernen" aria-label="Entfernen">' . $removeSvg . '</a>';
 
         $rowsHtml .= '<tr data-inv-id="' . $id . '">'
@@ -288,15 +324,15 @@ if ($action === 'load') {
     if (!$invId) { echo json_encode(['error' => 'Keine ID.']); return [$ct, 200]; }
 
     $db = new SQLite3($nurseryDb, SQLITE3_OPEN_READONLY);
-    $sPath = SQLite3::escapeString($stammdatenDb);
-    $db->exec("ATTACH DATABASE '$sPath' AS sd");
+    $db->busyTimeout(3000);
 
     $stmt = $db->prepare("
-        SELECT pi.*, sd.plants.botanical_name, sd.plant_names.name_de
+        SELECT pi.*, p.botanical_name, n.name_de
         FROM plant_inventory pi
-        JOIN sd.plants ON pi.plant_id = sd.plants.id
-        LEFT JOIN sd.plant_names ON pi.plant_id = sd.plant_names.plant_id
+        JOIN plants p ON pi.plant_id = p.id
+        LEFT JOIN plant_names n ON pi.plant_id = n.plant_id
         WHERE pi.id = :id
+        GROUP BY pi.id
     ");
     $stmt->bindValue(':id', $invId, SQLITE3_INTEGER);
     $row = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
@@ -359,19 +395,23 @@ if ($action === 'save') {
     $sets[] = "updated_at = CURRENT_TIMESTAMP";
     $db->exec("UPDATE plant_inventory SET " . implode(', ', $sets) . " WHERE id = $invId");
 
-    // plant_id für Availability-Sync ermitteln
+    // Pflanze für Availability-Sync ermitteln. plant_availability in plants.db kennt nur Master-IDs:
+    // rein eigene Pflanzen (ohne Master-Verknüpfung) werden nicht synchronisiert.
     $row = $db->querySingle("SELECT plant_id FROM plant_inventory WHERE id = $invId", true);
-    $plantId = $row ? (int)$row['plant_id'] : 0;
+    $localPlantId = $row ? (int)$row['plant_id'] : 0;
+    $plantId = $localPlantId
+        ? (int)$db->querySingle("SELECT master_plant_id FROM plant_local WHERE plant_id = $localPlantId")
+        : 0;
 
     // Prüfen ob irgendein Inventory-Eintrag dieser Pflanze öffentlich ist
-    $anyPublic = $plantId
-        ? (int)$db->querySingle("SELECT COUNT(*) FROM plant_inventory WHERE plant_id = $plantId AND is_public = 1")
+    $anyPublic = $localPlantId
+        ? (int)$db->querySingle("SELECT COUNT(*) FROM plant_inventory WHERE plant_id = $localPlantId AND is_public = 1")
         : 0;
 
     $db->close();
 
     // Availability in plants.db synchronisieren (in eigenem try/catch)
-    if ($plantId) {
+    if ($plantId && is_file($stammdatenDb)) {
         try {
             $sourceDb = basename($nurseryDb);
             $pdb = new SQLite3($stammdatenDb);

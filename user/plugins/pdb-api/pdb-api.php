@@ -35,6 +35,7 @@ class PdbApiPlugin extends Plugin
         '/pdb-api/portrait'   => ['file' => 'portrait.php',   'fn' => 'pdb_api_portrait'],
         '/pdb-api/eingabe'    => ['file' => 'eingabe.php',    'fn' => 'pdb_api_eingabe'],
         '/pdb-api/anfrage'    => ['file' => 'anfrage.php',    'fn' => 'pdb_api_anfrage'],
+        '/pdb-api/vorschlaege' => ['file' => 'vorschlaege.php', 'fn' => 'pdb_api_vorschlaege'],
         // Registrierung: Zugangscode -> Sitzungspruefung -> Konto anlegen (Sitzung, kein Login noetig)
         '/pdb-api/passphrase'    => ['file' => 'passphrase.php',    'fn' => 'pdb_api_passphrase'],
         '/pdb-api/session_check' => ['file' => 'session_check.php', 'fn' => 'pdb_api_session_check'],

@@ -4,6 +4,11 @@
  * Reine Bibliotheksdatei - wird nur vom pdb-api-Plugin eingebunden, nie direkt per HTTP.
  */
 
+// Pflanzentabellen der Gaertnerei-DB (Umbau A): Schema, Migration, Kopieren aus der plants.db
+require_once __DIR__ . '/_userdb.php';
+// Vorschlaege an die oeffentliche PDB (Umbau A, Stufe 2)
+require_once __DIR__ . '/_vorschlag.php';
+
 /**
  * Ermittelt die Gaertnerei-DB des eingeloggten Benutzers.
  * Der Pfad kommt serverseitig aus dem Login (Account-YAML: db_path),
@@ -78,6 +83,10 @@ function pdb_migrate_nursery_db(string $path): void
                 }
             }
         }
+        // Umbau A: Pflanzentabellen anlegen und bereits referenzierte Master-Pflanzen kopieren
+        pdb_userdb_ensure_plants($db);
+        // Stufe 2: eigene Pflanzen mit der PDB verknuepfen, sobald es sie dort gibt
+        pdb_vorschlag_link_plants($db, basename($path));
         $db->close();
     } catch (\Throwable $e) {
         error_log('PDB Migration ' . basename($path) . ': ' . $e->getMessage());

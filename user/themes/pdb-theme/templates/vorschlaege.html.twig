@@ -1,0 +1,26 @@
+{% extends 'partials/base.html.twig' %}
+
+{% block stylesheets %}
+    {{ parent() }}
+    {% do assets.addCss('theme://css/vorschlaege.css') %}
+{% endblock %}
+
+{% block javascripts %}
+    {{ parent() }}
+    {% do assets.addJs('theme://js/vorschlaege.js', {group: 'bottom', defer: true}) %}
+{% endblock %}
+
+{% block content %}
+{# Nur Editoren (Seitenzugriff site.pdb_editor); die API prueft das Recht zusaetzlich serverseitig #}
+<script>window.PDB_BASE = '{{ base_url_relative|e('js') }}';</script>
+<div class="pdb-vs-page">
+    <h1 class="pdb-vs-title">Vorschläge der Gärtnereien</h1>
+    <p class="pdb-vs-intro">Gärtnereien können ihre Pflanzen der öffentlichen Pflanzendatenbank vorschlagen.
+        Hier prüfen Sie jeden Vorschlag feldweise und übernehmen, was passt. Sie dürfen Werte vor der Übernahme korrigieren.</p>
+
+    <div id="pdb-vs-msg" class="pdb-vs-msg" hidden></div>
+
+    <div id="pdb-vs-list-view"></div>
+    <div id="pdb-vs-mask-view" hidden></div>
+</div>
+{% endblock %}

@@ -1,5 +1,5 @@
 ---
-title: Eingabe
+title: Eingabe PDB
 template: eingabe
 process:
     markdown: false

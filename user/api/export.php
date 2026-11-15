@@ -4,7 +4,9 @@
  *
  * Reine Bibliotheksdatei - wird vom pdb-api-Plugin eingebunden.
  * Excel-freundlich: UTF-8 mit BOM, Semikolon als Trenner, Punkt als Dezimalzeichen.
- * Letzte Spalte "PDB-ID" erlaubt spaeter den Abgleich/Re-Import.
+ * Letzte Spalte "PDB-ID" erlaubt spaeter den Abgleich/Re-Import (Master-ID der oeffentlichen PDB,
+ * leer bei Pflanzen, die es nur in der eigenen Datenbank gibt).
+ * Seit Umbau A kommen die Pflanzendaten aus der eigenen DB - plants.db wird nicht mehr gebraucht.
  */
 
 function pdb_api_export(\Grav\Common\Grav $grav): array
@@ -16,16 +18,10 @@ function pdb_api_export(\Grav\Common\Grav $grav): array
         return [json_encode(['error' => $n['error']]), $json, $n['status']];
     }
 
-    $stammdaten = GRAV_ROOT . '/user/data/sqlite/plants.db';
-    if (!is_file($stammdaten)) {
-        return [json_encode(['error' => 'Stammdaten-Datenbank nicht gefunden.']), $json, 500];
-    }
-
     try {
         $db = new SQLite3($n['path'], SQLITE3_OPEN_READONLY);
         $db->enableExceptions(true);
         $db->busyTimeout(3000);
-        $db->exec("ATTACH DATABASE '" . SQLite3::escapeString($stammdaten) . "' AS sd");
 
         // Standorte vorladen (fuer den Pfad "Haupt > Unter")
         $locs = [];
@@ -45,11 +41,12 @@ function pdb_api_export(\Grav\Common\Grav $grav): array
         $res = $db->query("
             SELECT pi.*,
                    p.botanical_name, p.genus, p.species, p.subspecies, p.cultivar, p.ecotype,
-                   (SELECT name_de FROM sd.plant_names WHERE plant_id = p.id LIMIT 1) AS name_de,
-                   (SELECT category_path FROM sd.plant_categories WHERE plant_id = p.id
-                      ORDER BY sort_order, id LIMIT 1) AS category_path
+                   (SELECT name_de FROM plant_names WHERE plant_id = p.id LIMIT 1) AS name_de,
+                   (SELECT category_path FROM plant_categories WHERE plant_id = p.id
+                      ORDER BY sort_order, id LIMIT 1) AS category_path,
+                   (SELECT master_plant_id FROM plant_local WHERE plant_id = p.id) AS master_plant_id
             FROM plant_inventory pi
-            JOIN sd.plants p ON p.id = pi.plant_id
+            JOIN plants p ON p.id = pi.plant_id
             ORDER BY p.botanical_name, pi.id
         ");
     } catch (\Throwable $e) {
@@ -95,7 +92,8 @@ function pdb_api_export(\Grav\Common\Grav $grav): array
             $t($r['oxs_offer_type'] ?? ''), $t($r['oxs_prop_method'] ?? ''), $t($r['oxs_source'] ?? ''),
             $t($r['oxs_source_bio'] ?? ''), $t($r['oxs_source_origin'] ?? ''), $t($r['oxs_geo_origin'] ?? ''),
             $t($r['oxs_offer_bio'] ?? ''),
-            $t($r['notes']), $t($r['updated_at']), (int)$r['plant_id'],
+            $t($r['notes']), $t($r['updated_at']),
+            $r['master_plant_id'] !== null ? (int)$r['master_plant_id'] : '',
         ], ';', '"', '', "\r\n");
     }
     $db->close();
