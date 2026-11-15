@@ -36,7 +36,7 @@ Auch ohne eigenen Bestand können Sie sich registrieren und Anfragelisten erstel
 
 ## Beta-Version
 
-Die PDB ist ein Prototyp. Erste Gärtnereien arbeiten damit, das System wird laufend weiterentwickelt. Rückmeldungen und Verbesserungsvorschläge: [pm@omiobio.ch](mailto:pm@omiobio.ch)
+Die PDB ist ein Prototyp. Erste Gärtnereien arbeiten damit, das System wird laufend weiterentwickelt. Rückmeldungen und Verbesserungsvorschläge: [pm@biosoft.ch](mailto:pm@biosoft.ch)
 
 ## Open Source
 

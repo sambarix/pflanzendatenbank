@@ -1,7 +1,7 @@
 # Pflanzendatenbank (PDB) - Pflichtenheft
 
 **Version:** 1.2, Stand 15. November 2026 (Nachführung von Version 1.1 vom 4. Februar 2025, siehe `docs/archiv/`)
-**Projektleitung:** Peter Müller (oMioBio), [pm@omiobio.ch](mailto:pm@omiobio.ch)
+**Projektleitung:** Peter Müller (oMioBio), [pm@biosoft.ch](mailto:pm@biosoft.ch)
 **Quellcode:** https://github.com/sambarix/pflanzendatenbank, Lizenz MIT
 **Live-Beta:** https://pdb.biosoft.ch
 
@@ -287,7 +287,7 @@ Die vollständige Liste steht im Schema `database/plants_schema.sql`, die fachli
 
 ## 14. Kontakt und Beteiligte
 
-**Projektleitung:** Peter Müller (oMioBio), [pm@omiobio.ch](mailto:pm@omiobio.ch)
+**Projektleitung:** Peter Müller (oMioBio), [pm@biosoft.ch](mailto:pm@biosoft.ch)
 
 **Beteiligte:** Peter Müller (Challenge Owner), KI-Assistenten (Claude von Anthropic, Le Chat von Mistral, OLMo, DeepSeek und weitere), Open Farming Hackday Community
 

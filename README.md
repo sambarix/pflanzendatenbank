@@ -71,7 +71,7 @@ Konzept, Anforderungen und Fachwissen stammen von Peter Müller (oMioBio). Der Q
 
 ## Mitmachen und Kontakt
 
-Rückmeldungen, Fehlerberichte und Pull Requests sind willkommen, am einfachsten als Issue hier auf GitHub. Kontakt: [pm@omiobio.ch](mailto:pm@omiobio.ch).
+Rückmeldungen, Fehlerberichte und Pull Requests sind willkommen, am einfachsten als Issue hier auf GitHub. Kontakt: [pm@biosoft.ch](mailto:pm@biosoft.ch).
 
 ## Lizenz
 

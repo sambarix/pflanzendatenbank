@@ -6,7 +6,7 @@ description: 'Routet die PDB-eigenen Daten-Endpunkte (Liste, Kategorien, Bestand
 icon: leaf
 author:
   name: oMioBio - Peter Mueller
-  email: pm@omiobio.ch
+  email: pm@biosoft.ch
 homepage: https://github.com/sambarix/pflanzendatenbank
 license: MIT
 dependencies:
