@@ -1,5 +1,5 @@
 -- Schema der zentralen Stammdaten-Datenbank plants.db (nur Struktur, keine Daten)
--- Erzeugt am 14.11.2026 aus der laufenden Entwicklungsdatenbank.
+-- Erzeugt am 15.11.2026 aus der laufenden Entwicklungsdatenbank.
 
 CREATE TABLE categories (
     id        INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -337,7 +337,7 @@ CREATE TABLE plants (
     -- Tracking
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-, description_short TEXT, description_long TEXT, care_instructions TEXT, meta_text TEXT);
+, description_short TEXT, description_long TEXT, care_instructions TEXT, meta_text TEXT, class_group TEXT);
 
 CREATE VIRTUAL TABLE plants_search USING fts5(
     genus,

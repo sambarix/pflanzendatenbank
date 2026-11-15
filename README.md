@@ -39,7 +39,7 @@ Offene Pflanzendatenbank für Knospe-zertifizierte Gärtnereien (Bio Suisse) und
 3. Die Einstellungen aus `config-beispiele/` in `user/config/` übernehmen: `system.yaml` (Theme, Startseite, `session.lazy`) und `site.yaml` in die bestehenden Dateien einarbeiten, `plugins/login.yaml` und `plugins/pdb-api.yaml` nach `user/config/plugins/` legen.
 4. Zugangscode für die Registrierung festlegen und nur als Hash eintragen:
    `php -r "echo password_hash('IHR-CODE', PASSWORD_DEFAULT), PHP_EOL;"` und das Ergebnis als `invite_hash` in `user/config/plugins/pdb-api.yaml`.
-5. Stammdaten-Datenbank anlegen: `database/plants_schema.sql` in eine neue Datei `user/data/sqlite/plants.db` einspielen, Stammdaten importieren und danach den Suchindex neu aufbauen (`INSERT INTO plants_search(plants_search) VALUES('rebuild');`). Die Stammdaten selbst sind noch nicht Teil dieses Repositorys.
+5. Stammdaten-Datenbank anlegen: `database/plants_schema.sql` in eine neue Datei `user/data/sqlite/plants.db` einspielen, Stammdaten importieren und danach den Suchindex neu aufbauen (`INSERT INTO plants_search(plants_search) VALUES('rebuild');`). Die Stammdaten selbst (Stand 15.11.2026: 4332 Pflanzen, 57 Kategorien) sind noch nicht Teil dieses Repositorys.
 6. Nach der Installation prüfen, dass `user/data/` und `user/accounts/` nicht per HTTP erreichbar sind (zum Beispiel muss `/user/data/sqlite/plants.db` mit 403 antworten).
 7. Betreiberangaben anpassen: `user/pages/11.impressum` und `user/pages/12.datenschutz` (beide sind Vorlagen mit Platzhaltern), `user/pages/01.home` und die Fusszeile `user/themes/pdb-theme/templates/partials/footer.html.twig`.
 

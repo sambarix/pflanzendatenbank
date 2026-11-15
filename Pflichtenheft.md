@@ -48,11 +48,11 @@ Grav und SQLite sind Standardwerkzeuge. Wo Grav eine Funktion mitbringt (Gruppen
 
 **Zentrale Stammdaten (`plants.db`)**, Schema in `database/plants_schema.sql`:
 
-- `plants` (Taxonomie, generierte Namen: botanischer Name eindeutig, Webname, Matchcode), `plant_names` (DE/EN/FR/IT und weitere Namen), `plant_content` (Beschreibungen), `categories` und `plant_categories` (hierarchische Kategorien)
+- `plants` (Taxonomie, Klasse/Gruppe in `class_group`, generierte Namen: botanischer Name eindeutig, Webname, Matchcode), `plant_names` (DE/EN/FR/IT und weitere Namen), `plant_content` (Beschreibungen), `categories` und `plant_categories` (hierarchische Kategorien)
 - je ein Detailbereich pro Tabelle: `plant_origin`, `plant_site`, `plant_flower`, `plant_leaf`, `plant_fruit`, `plant_root`, `plant_growth`, `plant_nursery`, `plant_usage`
 - `plant_availability` (öffentliche Verfügbarkeit bei Gärtnereien), `pot_sizes`, `field_options`
 - `plants_search` (FTS5-Volltextsuche)
-- Entwicklungsstand November 2026: 1548 Pflanzen, 151 Kategorien
+- Entwicklungsstand 15. November 2026: 4332 Pflanzen, 57 Kategorien (Zweige Nutzpflanzen, Zierpflanzen, Wildpflanzen; je Pflanze eine erste Kategorie)
 
 Abweichung von Version 1.1: Statt der geplanten EAV-Tabelle `plant_sections` gibt es feste Detailtabellen pro Bereich. `plant_traits` und `plant_synonyms` sind angelegt, aber noch nicht in Gebrauch.
 
@@ -100,7 +100,9 @@ Ein Editor mit eigener Gärtnerei gehört zu beiden Gruppen. Die Registrierung v
 | Warnung bei ungespeicherten Änderungen | umgesetzt |
 | Bearbeiten bestehender Pflanzen über die Liste (Stift) | umgesetzt |
 | Übernahme des Altbestands (rund 1500 Pflanzen) | umgesetzt |
-| Grosser Datenimport und Korrektur der Sortennamen mit fehlendem schliessendem Apostroph | offen |
+| Grosser Datenimport und Korrektur der Sortennamen mit fehlendem schliessendem Apostroph | teilweise: Rosen, Päonien, Stauden-, Wildrosen- und Etikettenlisten sind übernommen (4332 Pflanzen, Tippfehler per GBIF korrigiert), weitere Listen und Etikettenordner sind offen |
+| Klasse/Gruppe (z.B. Rosenklasse, Päonien-Gruppe, Pelargonien-Serie) als eigenes Feld, in Liste (Spalte, Suche) und Portrait | umgesetzt |
+| Klasse/Gruppe im Eingabeformular | offen |
 
 ### 3.3 Gärtnereien
 

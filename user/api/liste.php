@@ -50,6 +50,7 @@ function pdb_api_liste_render(\Grav\Common\Grav $grav): ?string
         'genus'          => ['sql' => 'p.genus', 'label' => 'Gattung', 'group' => 'Taxonomie'],
         'species'        => ['sql' => 'p.species', 'label' => 'Art', 'group' => 'Taxonomie'],
         'cultivar'       => ['sql' => 'p.cultivar', 'label' => 'Sorte', 'group' => 'Taxonomie'],
+        'class_group'    => ['sql' => 'p.class_group', 'label' => 'Klasse', 'group' => 'Taxonomie'],
         'subspecies'     => ['sql' => 'p.subspecies', 'label' => 'Unterart', 'group' => 'Taxonomie'],
         'ecotype'        => ['sql' => 'p.ecotype', 'label' => 'Ökotyp', 'group' => 'Taxonomie'],
         'matchcode'      => ['sql' => 'p.matchcode', 'label' => 'Matchcode', 'group' => 'Taxonomie'],
@@ -104,6 +105,14 @@ function pdb_api_liste_render(\Grav\Common\Grav $grav): ?string
         'root_anchorage'     => ['sql' => 'pr.anchorage',    'label' => 'Verankerung',   'group' => 'Wurzel'],
         'synonyms'           => ['sql' => '(SELECT GROUP_CONCAT(synonym_name, ", ") FROM plant_synonyms WHERE plant_id = p.id)', 'label' => 'Synonyme', 'group' => 'Namen'],
     ];
+
+    // Klasse/Gruppe (plants.class_group) nur anbieten, wenn die Spalte in der DB existiert (Migration)
+    $hasClassGroup = false;
+    $tiRes = $db->query('PRAGMA table_info(plants)');
+    while ($tiRow = $tiRes->fetchArray(SQLITE3_ASSOC)) {
+        if ($tiRow['name'] === 'class_group') { $hasClassGroup = true; }
+    }
+    if (!$hasClassGroup) { unset($allColumns['class_group']); }
 
     // --- Column Profiles ---
     $profiles = [
@@ -211,14 +220,18 @@ function pdb_api_liste_render(\Grav\Common\Grav $grav): ?string
         $where .= ' OR p.genus LIKE :search';
         $where .= ' OR p.species LIKE :search';
         $where .= ' OR p.cultivar LIKE :search';
+        if ($hasClassGroup) { $where .= ' OR p.class_group LIKE :search'; }
         if ($needsNames) { $where .= ' OR pn.name_de LIKE :search'; }
         $where .= ')';
         $params[':search'] = '%' . $search . '%';
     }
 
     if ($category !== '') {
-        $where .= ' AND pc.category_path LIKE :category';
-        $params[':category'] = $category . '%';
+        // Pflanze gehoert zur Kategorie, wenn IRGENDEINE ihrer Kategorien (erste oder weitere) genau diese oder eine Unterkategorie ist
+        $where .= ' AND EXISTS (SELECT 1 FROM plant_categories pcx WHERE pcx.plant_id = p.id'
+                . ' AND (pcx.category_path = :category OR pcx.category_path LIKE :categorysub))';
+        $params[':category'] = $category;
+        $params[':categorysub'] = $category . '/%';
     }
 
     // --- Sort ---
@@ -314,6 +327,10 @@ function pdb_api_liste_render(\Grav\Common\Grav $grav): ?string
                     } else {
                         $val = $editIcon . '<strong>' . htmlspecialchars($val) . '</strong>';
                     }
+                } elseif ($col === 'category_path' && $val !== '') {
+                    // nur die unterste Kategorie anzeigen, der volle Pfad steht im Tooltip
+                    $catParts = explode('/', $val);
+                    $val = '<span title="' . htmlspecialchars($val) . '">' . htmlspecialchars(end($catParts)) . '</span>';
                 } else {
                     $val = str_replace(',', ' ', htmlspecialchars($val));
                 }
