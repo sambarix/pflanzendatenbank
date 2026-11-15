@@ -56,12 +56,12 @@ user/                  Kopiervorlage für das user/-Verzeichnis von Grav
   config/              groups.yaml und Theme-Konfiguration
 config-beispiele/      Einstellungen zum Übernehmen
 database/              plants_schema.sql (aktuelles Schema der Stammdaten-Datenbank)
-docs/                  Entwurfsdokumente (Stand Anfang 2025, teils überholt), docs/archiv: frühere Pflichtenhefte
+docs/                  Entwurfsdokumente (Stand Anfang 2025, teils überholt), docs/archiv: frühere Pflichtenhefte und das erste Datenbankschema
 Pflichtenheft.md       Anforderungen und Umsetzungsstand
 THIRD-PARTY.md         Fremdkomponenten und Lizenzen
 ```
 
-`database/create_database.sql` und `database/gardener_ai.db` stammen aus dem ersten Entwurf von 2025 und entsprechen nicht mehr dem heutigen Schema.
+Das erste Datenbankschema vom Februar 2026 (`create_database_v1.0_2026-02.sql`) und die zugehörige leere Beispiel-Datenbank (`gardener_ai_leer_v1.0_2026-02.db`) liegen in `docs/archiv/` und entsprechen nicht mehr dem heutigen Schema.
 
 ## Entstehung
 
