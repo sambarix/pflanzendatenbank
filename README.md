@@ -28,7 +28,7 @@ Offene Pflanzendatenbank für Knospe-zertifizierte Gärtnereien (Bio Suisse) und
 
 ## Technik
 
-- [Grav](https://getgrav.org) 2.2 (PHP 8.3 oder neuer, Erweiterungen `sqlite3`, `zip`, `mbstring`, `gd`)
+- [Grav](https://getgrav.org) 2.2 (PHP 8.3 oder neuer, Erweiterungen ``zip`, `mbstring`, `gd`)
 - Kind-Theme `pdb-theme` von Quark 2, Seiten dynamisch per [htmx](https://htmx.org)
 - Plugin `pdb-api`: stellt die Endpunkte `/pdb-api/<name>` über Gravs eigenen Request-Zyklus bereit. Die Dateien in `user/api/` sind reine Funktionsbibliotheken und nicht direkt per HTTP erreichbar.
 - SQLite: eine zentrale Stammdaten-Datenbank `plants.db`, pro Konto eine eigene Datei `user/data/sqlite/<konto>.db` (mit den kopierten und eigenen Pflanzen) und die Vorschlagsliste `vorschlag.db`, die der Code selbst anlegt. Der Datenbankpfad kommt immer aus dem Login, nie aus dem Browser.
