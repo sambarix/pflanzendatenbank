@@ -216,14 +216,26 @@ function pdb_api_liste_render(\Grav\Common\Grav $grav): ?string
     $params = [];
 
     if ($search !== '') {
-        $where .= ' AND (p.botanical_name LIKE :search';
-        $where .= ' OR p.genus LIKE :search';
-        $where .= ' OR p.species LIKE :search';
-        $where .= ' OR p.cultivar LIKE :search';
-        if ($hasClassGroup) { $where .= ' OR p.class_group LIKE :search'; }
-        if ($needsNames) { $where .= ' OR pn.name_de LIKE :search'; }
-        $where .= ')';
-        $params[':search'] = '%' . $search . '%';
+        // Suche wortweise (alle Woerter muessen vorkommen, Reihenfolge egal), ohne Anfuehrungszeichen und ohne
+        // Beachtung der Gross-/Kleinschreibung. SQLites LIKE kennt Gross/Klein nur fuer ASCII (Ae/ae, Oe/oe gehen
+        // nicht), darum werden Spalte und Suchwort ueber pdb_fold() (mb_strtolower) verglichen.
+        $db->createFunction('pdb_fold', function ($s) { return mb_strtolower((string)$s, 'UTF-8'); }, 1);
+        $quotes = '\'"‘’‚‛“”„«»‹›`´';
+        $words = [];
+        foreach (preg_split('/\s+/u', $search, -1, PREG_SPLIT_NO_EMPTY) ?: [] as $w) {
+            $w = mb_strtolower((string)preg_replace('/[' . $quotes . ']+/u', '', $w), 'UTF-8');
+            if ($w !== '') { $words[] = $w; }
+        }
+        $words = array_slice($words, 0, 8);
+        $cols = ['p.botanical_name', 'p.genus', 'p.species', 'p.cultivar'];
+        if ($hasClassGroup) { $cols[] = 'p.class_group'; }
+        if ($needsNames) { $cols[] = 'pn.name_de'; }
+        foreach ($words as $i => $w) {
+            $parts = [];
+            foreach ($cols as $c) { $parts[] = "pdb_fold($c) LIKE :search$i ESCAPE '!'"; }
+            $where .= ' AND (' . implode(' OR ', $parts) . ')';
+            $params[':search' . $i] = '%' . str_replace(['!', '%', '_'], ['!!', '!%', '!_'], $w) . '%';
+        }
     }
 
     if ($category !== '') {

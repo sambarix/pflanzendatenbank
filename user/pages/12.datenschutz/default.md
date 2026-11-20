@@ -21,7 +21,7 @@ Diese Erklärung beschreibt, wie auf dieser Website (Pflanzendatenbank) Personen
 
 - Wer die Website nur ansieht, hinterlässt ausser den technischen Serverprotokollen des Hosters keine Spuren.
 - Es werden keine Analyse- oder Tracking-Dienste eingesetzt und keine Inhalte von fremden Servern nachgeladen (keine Schriften, Icons, Karten oder Skripte von Dritten).
-- Ein Cookie wird nur gesetzt, wenn Sie die Anmeldeseite öffnen, sich anmelden oder einen Zugangscode eingeben.
+- Ein Cookie wird nur gesetzt, wenn Sie die Anmeldeseite öffnen, sich anmelden, einen Zugangscode eingeben oder ohne Konto eine Anfrageliste anlegen.
 - Die Daten liegen bei einem Hoster in der Schweiz.
 
 ## Hosting und Serverprotokolle
@@ -36,6 +36,7 @@ Es werden nur technisch notwendige Cookies verwendet:
 
 - **Sitzungs-Cookie** (Name beginnt mit «grav-site»): Er enthält nur eine zufällige Sitzungs-Kennung, keine Personendaten. Er wird gesetzt, wenn Sie die Anmeldeseite öffnen, sich anmelden oder einen Zugangscode eingeben, und läuft nach 30 Minuten Inaktivität ab.
 - **«Remember Me»-Cookie** (Name beginnt mit «grav-rememberme»): Nur wenn Sie bei der Anmeldung «Remember Me» aktivieren. Er hält die Anmeldung bis zu einer Woche aufrecht. Beim Abmelden wird er gelöscht.
+- **Anfrageliste-Cookie** (Name «pdb_anf»): Nur wenn Sie ohne Konto eine Anfrageliste anlegen. Er enthält eine zufällige Kennung, mit der Ihr Browser seine Liste auf dem Server wiederfindet. Er läuft nach 90 Tagen ab und wird bei jeder Benutzung der Liste verlängert.
 
 Die Wahl zwischen hellem und dunklem Erscheinungsbild speichert Ihr Browser lokal (localStorage). Sie wird nicht an den Server übertragen.
 
@@ -56,7 +57,11 @@ Zweck ist der Betrieb der Plattform: Anmeldung, Verwaltung des eigenen Sortiment
 
 Gärtnereien erfassen ihr Sortiment und ihren Bestand. Was als öffentlich gekennzeichnet ist, sehen alle Besucherinnen und Besucher, zusammen mit dem Namen der Gärtnerei und einem Verweis auf deren Angaben. Alles andere ist nur im eigenen Konto sichtbar.
 
+Pflanzen, die eine Gärtnerei neu erfasst, liegen zunächst nur in ihrer eigenen Datenbank. Setzt sie beim Erfassen den Haken «Für die öffentliche Pflanzendatenbank vorschlagen» (er ist voreingestellt), wird eine Kopie der Pflanzenangaben als Vorschlag in einer gemeinsamen Vorschlagsdatei gespeichert. Diese Vorschläge sehen nur die Editoren der Pflanzendatenbank, zusammen mit dem Namen der Gärtnerei und dem Datum. Die Editoren entscheiden, was in die öffentliche Datenbank übernommen wird; übernommene Pflanzenangaben sind danach öffentlich sichtbar. Auch abgelehnte oder zurückgezogene Vorschläge bleiben für die Editoren in der Liste. Die Gärtnerei sieht den Stand ihres Vorschlags und einen allfälligen Hinweis der Editoren.
+
 Anfragelisten sind privat. Beim Export als Excel- oder CSV-Datei werden Name, Ort, E-Mail-Adresse und, falls hinterlegt, Telefonnummer des Kontos als Absenderzeile in die Datei geschrieben. Die Datei geben die Nutzenden selbst weiter, die Plattform versendet nichts automatisch.
+
+Die Anfrageliste können Sie auch ohne Konto verwenden. Dann legt der Server beim Anlegen Ihrer ersten Liste eine kleine Datenbankdatei an, die nur über die zufällige Kennung im Cookie «pdb_anf» gefunden wird. Sie enthält Ihre Listen mit den gewählten Pflanzen und Notizen sowie, falls Sie ihn eingeben, einen frei gewählten Betriebs- oder Absendernamen; Pflichtangaben gibt es keine. Die Datei wird keiner Person zugeordnet und nicht ausgewertet. Einzelne Listen können Sie jederzeit selbst löschen; die ganze Datei wird gelöscht, wenn Sie sie 90 Tage lang nicht mehr benutzt haben. Zum Schutz vor Missbrauch wird pro Tag gezählt, wie viele neue Listen von einem Internetanschluss aus angelegt werden; dafür wird nur ein gekürzter Hash der IP-Adresse (nicht die IP-Adresse selbst) gespeichert, und er wird nach zwei Tagen gelöscht.
 
 ## Weitergabe an Dritte
 
@@ -64,7 +69,7 @@ Ausser an den Hoster cyon werden Personendaten nicht weitergegeben und nicht zu 
 
 ## Datensicherheit
 
-Die Verbindung zur Website ist verschlüsselt (HTTPS). Passwörter werden nur als Hash gespeichert. Jeder Betrieb arbeitet in seiner eigenen Datenbankdatei und kann nur auf die eigenen Daten zugreifen. Eine vollständige Sicherheit lässt sich bei keinem Internetdienst garantieren.
+Die Verbindung zur Website ist verschlüsselt (HTTPS). Passwörter werden nur als Hash gespeichert. Jeder Betrieb arbeitet in seiner eigenen Datenbankdatei und kann nur auf die eigenen Daten zugreifen; Ausnahme sind die Vorschläge für die öffentliche Datenbank, die die Editoren sehen. Eine vollständige Sicherheit lässt sich bei keinem Internetdienst garantieren.
 
 ## Ihre Rechte
 

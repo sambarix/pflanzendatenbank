@@ -5,8 +5,9 @@ Offene Pflanzendatenbank für Knospe-zertifizierte Gärtnereien (Bio Suisse) und
 ## Funktionen
 
 **Öffentlich, ohne Anmeldung**
-- Pflanzenliste mit Live-Suche, Kategorie-Filter und Spaltenauswahl
+- Pflanzenliste mit Live-Suche, Kategorie-Filter und Spaltenauswahl; die Auswahl (Suche, Kategorie, Seite, Sortierung, Spalten) steht in der Adresszeile und bleibt nach dem Portrait und beim Zurückgehen erhalten
 - Pflanzenportrait mit allen Angaben und dem Hinweis, welche Gärtnereien die Pflanze öffentlich anbieten
+- Anfrageliste (siehe unten), auch ohne Konto
 
 **Gärtnereien** (Konto mit eigener Datenbank)
 - Sortiment und Bestand verwalten (Topfgrösse, Menge, Preis, Standort, oXs-Felder)
@@ -18,11 +19,11 @@ Offene Pflanzendatenbank für Knospe-zertifizierte Gärtnereien (Bio Suisse) und
 **Gartenplaner und Gartenbau** (Konto ohne eigenen Bestand)
 - Anfragelisten erstellen
 
-**Anfrageliste**: Wer Pflanzen oder Vermehrungsmaterial zukaufen will und nicht weiss, ob es sie in Bioqualität gibt, stellt eine Liste zusammen. Pflanzen werden aus der Datenbank gewählt, frei eingegeben oder als Liste eingefügt. Die Liste wird als Excel-Datei mit Auswahlfeldern für die Antwort der Anbieter oder als CSV exportiert. Ist eine Pflanze bei einer Gärtnerei öffentlich verfügbar, erscheint der Hinweis schon bei der Listenerstellung. Die PDB versendet nichts selbst, die Datei wird per E-Mail weitergegeben.
+**Anfrageliste**: Wer Pflanzen oder Vermehrungsmaterial zukaufen will und nicht weiss, ob es sie in Bioqualität gibt, stellt eine Liste zusammen. Pflanzen werden aus der Datenbank gewählt, frei eingegeben oder als Liste eingefügt. Die Liste wird als Excel-Datei mit Auswahlfeldern für die Antwort der Anbieter oder als CSV exportiert. Ist eine Pflanze bei einer Gärtnerei öffentlich verfügbar, erscheint der Hinweis schon bei der Listenerstellung. Ohne Konto liegt die Liste in einer kleinen Datei pro Browser (Cookie `pdb_anf`, wird 90 Tage nach dem letzten Besuch gelöscht), mit Konto in der eigenen Datenbank. Die PDB versendet nichts selbst, die Datei wird per E-Mail weitergegeben.
 
 **Editoren** bearbeiten die öffentlichen Stammdaten (Eingabe von Pflanzen mit allen Aufklapp-Bereichen) und prüfen die Vorschläge der Gärtnereien. Die Prüfmaske zeigt nur die Abweichungen zum Master, Werte lassen sich korrigieren, übernommen wird Feld für Feld oder mit Begründung abgelehnt. Die Namen bestehender Pflanzen sind dabei gesperrt.
 
-**Konten** gibt es nur mit Zugangscode. Die Rollen laufen über Grav-Gruppen: `user` (Gärtnerei), `planer`, `editor`; der technische Admin arbeitet im Grav-Backend. Besucher ohne Konto bekommen kein Cookie, und es werden keine Inhalte von fremden Servern geladen.
+**Konten** gibt es nur mit Zugangscode. Die Rollen laufen über Grav-Gruppen: `user` (Gärtnerei), `planer`, `editor`; der technische Admin arbeitet im Grav-Backend. Besucher ohne Konto bekommen kein Cookie, ausser sie legen eine Anfrageliste an (dann `pdb_anf`), und es werden keine Inhalte von fremden Servern geladen.
 
 **Noch nicht gebaut**: Meldungen an organicxseeds.ch, Etikettendruck, Nachziehen von Änderungen aus den Stammdaten in die Kopien der Gärtnereien, Herunterladen der eigenen Datenbank für den lokalen Betrieb, Hochladen der beantworteten Anfrageliste, PDF-Ausgabe. Der Stand aller Anforderungen steht im [Pflichtenheft](Pflichtenheft.md).
 
@@ -41,7 +42,7 @@ Offene Pflanzendatenbank für Knospe-zertifizierte Gärtnereien (Bio Suisse) und
 3. Die Einstellungen aus `config-beispiele/` in `user/config/` übernehmen: `system.yaml` (Theme, Startseite, `session.lazy`) und `site.yaml` in die bestehenden Dateien einarbeiten, `plugins/login.yaml` und `plugins/pdb-api.yaml` nach `user/config/plugins/` legen.
 4. Zugangscode für die Registrierung festlegen und nur als Hash eintragen:
    `php -r "echo password_hash('IHR-CODE', PASSWORD_DEFAULT), PHP_EOL;"` und das Ergebnis als `invite_hash` in `user/config/plugins/pdb-api.yaml`.
-5. Stammdaten-Datenbank anlegen: `database/plants_schema.sql` in eine neue Datei `user/data/sqlite/plants.db` einspielen, Stammdaten importieren und danach den Suchindex neu aufbauen (`INSERT INTO plants_search(plants_search) VALUES('rebuild');`). Die Stammdaten selbst (Stand 15.11.2026: 4332 Pflanzen, 57 Kategorien) sind noch nicht Teil dieses Repositorys.
+5. Stammdaten-Datenbank anlegen: `database/plants_schema.sql` in eine neue Datei `user/data/sqlite/plants.db` einspielen, Stammdaten importieren und danach den Suchindex neu aufbauen (`INSERT INTO plants_search(plants_search) VALUES('rebuild');`). Die Stammdaten selbst (Stand 20.11.2026: 8331 Pflanzen, 57 Kategorien) sind noch nicht Teil dieses Repositorys.
 6. Nach der Installation prüfen, dass `user/data/` und `user/accounts/` nicht per HTTP erreichbar sind (zum Beispiel muss `/user/data/sqlite/plants.db` mit 403 antworten).
 7. Betreiberangaben anpassen: `user/pages/11.impressum` und `user/pages/12.datenschutz` (beide sind Vorlagen mit Platzhaltern), `user/pages/01.home` und die Fusszeile `user/themes/pdb-theme/templates/partials/footer.html.twig`.
 

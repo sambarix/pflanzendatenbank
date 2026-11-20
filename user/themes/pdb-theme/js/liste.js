@@ -20,8 +20,79 @@ var pdbState = {
     dir: 'ASC'
 };
 
+// Kategorie aus der Adresszeile; wird gesetzt, sobald das Dropdown geladen ist
+var pdbPendingCategory = '';
+// Letzte Listen-Adresse (mit Auswahl) fuer "Zurueck zur Liste" im Portrait
+var PDB_LISTE_KEY = 'pdb_liste_url';
+
 function pdbApiBase() {
     return (window.PDB_BASE_URL || '') + '/pdb-api/';
+}
+
+/**
+ * Auswahl der Liste in der Adresszeile merken (history.replaceState, kein neuer Verlaufseintrag)
+ * und die Adresse fuer das Portrait ablegen. So bleiben Suche, Kategorie, Seite, Sortierung und
+ * Spalten erhalten, wenn man ein Portrait oeffnet und zurueckkehrt (Link oder Browser-Zurueck).
+ */
+function pdbSaveState(apiUrl) {
+    var q = new URLSearchParams(apiUrl.indexOf('?') !== -1 ? apiUrl.split('?')[1] : '');
+    q.delete('format');
+    Array.from(q.keys()).forEach(function(k) { if (q.get(k) === '') q.delete(k); });
+    var rel = window.location.pathname + (q.toString() ? '?' + q.toString() : '');
+    try { history.replaceState(history.state, '', rel); } catch (e) {}
+    try { sessionStorage.setItem(PDB_LISTE_KEY, rel); } catch (e) {}
+}
+
+/**
+ * Erste Abfrage der Liste: Auswahl aus der Adresszeile (?search=..&category=..&page=..) uebernehmen,
+ * sonst Standard (Profil Botanik, 20 Zeilen, Seite 1).
+ */
+function pdbInitialLoad() {
+    var p = new URLSearchParams(window.location.search);
+    var q = new URLSearchParams();
+    q.set('format', 'full');
+
+    var perPage = p.get('per_page');
+    if (['20', '50', '100', '500'].indexOf(perPage) === -1) perPage = '20';
+    document.getElementById('pdb-per-page').value = perPage;
+    q.set('per_page', perPage);
+
+    var page = parseInt(p.get('page'), 10);
+    q.set('page', page > 0 ? String(page) : '1');
+
+    var search = p.get('search') || '';
+    document.getElementById('pdb-search').value = search;
+    q.set('search', search);
+
+    if (p.get('sort')) pdbState.sort = p.get('sort');
+    if (p.get('dir') === 'ASC' || p.get('dir') === 'DESC') pdbState.dir = p.get('dir');
+    q.set('sort', pdbState.sort);
+    q.set('dir', pdbState.dir);
+
+    var category = p.get('category') || '';
+    pdbPendingCategory = category;
+    q.set('category', category);
+
+    var columns = p.get('columns') || '';
+    var profile = p.get('profile') || 'botanik';
+    if (columns !== '') {
+        pdbState.customColumns = columns.split(',');
+        pdbState.profile = 'custom';
+        document.getElementById('pdb-profile').value = 'custom';
+        document.getElementById('pdb-profile-hidden').value = 'custom';
+        document.getElementById('pdb-columns-hidden').value = columns;
+        q.set('columns', columns);
+    } else {
+        if (!pdbProfiles[profile]) profile = 'botanik';
+        pdbState.profile = profile;
+        document.getElementById('pdb-profile').value = profile;
+        document.getElementById('pdb-profile-hidden').value = profile;
+        pdbSyncCheckboxesToProfile(profile);
+        q.set('profile', profile);
+    }
+
+    pdbSyncHiddenFields();
+    htmx.ajax('GET', pdbApiBase() + 'liste?' + q.toString(), {target: '#pdb-table', swap: 'innerHTML'});
 }
 
 /**
@@ -48,6 +119,11 @@ function pdbLoadCategories() {
                     opt.textContent = indent + parts[parts.length - 1] + ' (' + cat.count + ')';
                     sel.appendChild(opt);
                 });
+                // Kategorie aus der Adresszeile wieder einstellen
+                if (pdbPendingCategory) {
+                    sel.value = pdbPendingCategory;
+                    document.getElementById('pdb-category-hidden').value = sel.value;
+                }
             } catch (e) {
                 // Silently fail - categories just won't load
             }
@@ -181,6 +257,8 @@ function pdbReload() {
  * Initialize on page load
  */
 document.addEventListener('DOMContentLoaded', function() {
+    // Reihenfolge: erst Auswahl aus der Adresszeile lesen (setzt pdbPendingCategory), dann Kategorien laden
+    pdbInitialLoad();
     pdbLoadCategories();
 
     // Sync hidden fields before every HTMX request (so search includes per_page, category)
@@ -200,6 +278,12 @@ document.addEventListener('DOMContentLoaded', function() {
             var params = new URLSearchParams(qstr);
             if (params.get('sort')) pdbState.sort = params.get('sort');
             if (params.get('dir')) pdbState.dir = params.get('dir');
+        }
+        // Auswahl in der Adresszeile merken (nur erfolgreiche Listenabfragen)
+        var xhr = evt.detail.xhr;
+        var ru = xhr ? xhr.responseURL : '';
+        if (evt.detail.successful && ru && ru.indexOf('/pdb-api/liste') !== -1 && ru.indexOf('format=full') !== -1) {
+            pdbSaveState(ru);
         }
     });
 });

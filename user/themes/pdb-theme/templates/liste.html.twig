@@ -198,9 +198,8 @@
 
     {# === TABLE === #}
     <div class="pdb-table-wrapper">
+        {# Erste Abfrage startet liste.js (pdbInitialLoad): liest Suche, Kategorie, Seite usw. aus der Adresszeile #}
         <table class="pdb-table" id="pdb-table"
-               hx-get="{{ base_url }}/pdb-api/liste?format=full&profile=botanik&per_page=20&page=1"
-               hx-trigger="load"
                hx-swap="innerHTML">
             <thead id="pdb-thead"><tr><th>Laden...</th></tr></thead>
             <tbody id="pdb-tbody"><tr><td>Daten werden geladen...</td></tr></tbody>

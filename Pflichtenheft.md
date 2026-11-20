@@ -1,6 +1,6 @@
 # Pflanzendatenbank (PDB) - Pflichtenheft
 
-**Version:** 1.2, Stand 15. November 2026 (Nachführung von Version 1.1 vom 4. Februar 2025, siehe `docs/archiv/`)
+**Version:** 1.2, Umsetzungsstand nachgeführt am 20. November 2026 (Nachführung von Version 1.1 vom 4. Februar 2025, siehe `docs/archiv/`)
 **Projektleitung:** Peter Müller (oMioBio), [pm@biosoft.ch](mailto:pm@biosoft.ch)
 **Quellcode:** https://github.com/sambarix/pflanzendatenbank, Lizenz MIT
 **Live-Beta:** https://pdb.biosoft.ch
@@ -48,11 +48,11 @@ Grav und SQLite sind Standardwerkzeuge. Wo Grav eine Funktion mitbringt (Gruppen
 
 **Zentrale Stammdaten (`plants.db`)**, Schema in `database/plants_schema.sql`:
 
-- `plants` (Taxonomie, Klasse/Gruppe in `class_group`, generierte Namen: botanischer Name eindeutig, Webname, Matchcode), `plant_names` (DE/EN/FR/IT und weitere Namen), `plant_content` (Beschreibungen), `categories` und `plant_categories` (hierarchische Kategorien)
+- `plants` (Taxonomie, Klasse/Gruppe in `class_group`, PSR-Nummer in `psr_number`, generierte Namen: botanischer Name eindeutig, Webname, Matchcode), `plant_names` (DE/EN/FR/IT und weitere Namen), `plant_content` (Beschreibungen), `categories` und `plant_categories` (hierarchische Kategorien)
 - je ein Detailbereich pro Tabelle: `plant_origin`, `plant_site`, `plant_flower`, `plant_leaf`, `plant_fruit`, `plant_root`, `plant_growth`, `plant_nursery`, `plant_usage`
 - `plant_availability` (öffentliche Verfügbarkeit bei Gärtnereien), `pot_sizes`, `field_options`
 - `plants_search` (FTS5-Volltextsuche)
-- Entwicklungsstand 15. November 2026: 4332 Pflanzen, 57 Kategorien (Zweige Nutzpflanzen, Zierpflanzen, Wildpflanzen; je Pflanze eine erste Kategorie)
+- Entwicklungsstand 20. November 2026: 8331 Pflanzen, 57 Kategorien (Zweige Nutzpflanzen, Zierpflanzen, Wildpflanzen; je Pflanze eine erste Kategorie). Quelle und Vertrauensstufe ("ungeprueft") der importierten Pflanzen stehen im Importprotokoll (CSV), nicht in der Datenbank.
 
 Abweichung von Version 1.1: Statt der geplanten EAV-Tabelle `plant_sections` gibt es feste Detailtabellen pro Bereich. `plant_traits` und `plant_synonyms` sind angelegt, aber noch nicht in Gebrauch.
 
@@ -76,7 +76,7 @@ Ein Editor mit eigener Gärtnerei gehört zu beiden Gruppen. Die Registrierung v
 
 - Registrierung nur mit Zugangscode (als Hash gespeichert), nach acht Fehlversuchen kurze Sperre
 - Passwörter nur als Hash, jede Gärtnerei arbeitet in ihrer eigenen Datenbankdatei
-- Besucher ohne Konto erhalten kein Cookie (`session.lazy`); es werden keine Inhalte von fremden Servern geladen
+- Besucher ohne Konto erhalten kein Cookie (`session.lazy`), ausser beim Anlegen einer Anfrageliste (`pdb_anf`); es werden keine Inhalte von fremden Servern geladen
 - Datenschutzerklärung und Impressum liegen als Seiten bei (Vorlagen, vom Betreiber auszufüllen)
 
 ## 3. Funktionale Anforderungen
@@ -87,6 +87,7 @@ Ein Editor mit eigener Gärtnerei gehört zu beiden Gruppen. Die Registrierung v
 |---|---|
 | Pflanzenliste mit Live-Suche, Kategorie-Filter, Sortierung, Spaltenauswahl | umgesetzt |
 | Pflanzenportrait mit allen Bereichen, Bild (falls vorhanden) und Hinweis, welche Gärtnereien die Pflanze öffentlich anbieten | umgesetzt |
+| Auswahl der Liste (Suche, Kategorie, Seite, Zeilen, Sortierung, Spalten) steht in der Adresszeile und bleibt nach dem Portrait und mit dem Zurück-Knopf erhalten | umgesetzt |
 | Hilfeseite | umgesetzt |
 | Export der Liste (CSV, JSON, YAML) | offen |
 | QR-Code im Portrait | offen |
@@ -102,8 +103,9 @@ Ein Editor mit eigener Gärtnerei gehört zu beiden Gruppen. Die Registrierung v
 | Warnung bei ungespeicherten Änderungen | umgesetzt |
 | Bearbeiten bestehender Pflanzen über die Liste (Stift) | umgesetzt |
 | Übernahme des Altbestands (rund 1500 Pflanzen) | umgesetzt |
-| Grosser Datenimport und Korrektur der Sortennamen mit fehlendem schliessendem Apostroph | teilweise: Rosen, Päonien, Stauden-, Wildrosen- und Etikettenlisten sind übernommen (4332 Pflanzen, Tippfehler per GBIF korrigiert), weitere Listen und Etikettenordner sind offen |
+| Grosser Datenimport und Korrektur der Sortennamen mit fehlendem schliessendem Apostroph | teilweise: Rosen, Päonien, Stauden-, Wildrosen- und Etikettenlisten, danach Wildpflanzen, Sativa-Sortiment, Zierpflanzenliste und Obst/Beeren (Glauser) sind übernommen (8331 Pflanzen, Tippfehler per GBIF korrigiert, Namenspflege und Kategorien nach festen Regeln), weitere Listen sind offen |
 | Klasse/Gruppe (z.B. Rosenklasse, Päonien-Gruppe, Pelargonien-Serie) als eigenes Feld, in Liste (Spalte, Suche) und Portrait | umgesetzt |
+| PSR-Nummer (Sortenregister, z.B. bei Beerensorten) als eigenes Feld, im Portrait | umgesetzt; Eingabeformular und Liste noch ohne das Feld |
 | Klasse/Gruppe im Eingabeformular | offen |
 | Vorschlagsliste: Vorschläge der Gärtnereien mit Absender sehen, nur die Abweichungen zum Master prüfen, Werte korrigieren, Feld für Feld übernehmen oder mit Begründung ablehnen; Namen bestehender Pflanzen sind gesperrt, Kategorien und Synonyme werden nur ergänzt | umgesetzt |
 | Ein Editor mit eigener Gärtnerei kann Pflanzen wie eine Gärtnerei erfassen und einen Vorschlag erzeugen, den ein anderer Editor prüft | umgesetzt |
@@ -128,11 +130,12 @@ Ein Editor mit eigener Gärtnerei gehört zu beiden Gruppen. Die Registrierung v
 | Export in Webshop-Formate (Bagisto, Shopware, Gambio, ...) | offen |
 | Etikettendruck (Stecketiketten, Labeldrucker, QR-Code) | offen |
 
-### 3.4 Anfrageliste (Gärtnereien und Planer)
+### 3.4 Anfrageliste (Gärtnereien, Planer und Besucher ohne Konto)
 
 | Anforderung | Stand |
 |---|---|
 | Mehrere benannte Anfragen pro Konto, gespeichert | umgesetzt |
+| Anfrageliste auch ohne Konto: Liste in einer kleinen Datei pro Browser (Cookie `pdb_anf`, 90 Tage ohne Besuch bis zur Löschung), 20 neue Besucher pro IP und Tag, Schreibzugriffe nur von der eigenen Seite (Schutz gegen CSRF) | umgesetzt |
 | Pflanzen hinzufügen: Suche in den Stammdaten (mehrere auf einmal), freie Eingabe von Gattung, Art und Sorte, Liste einfügen (eine Pflanze pro Zeile, Duplikate werden gemeldet) | umgesetzt |
 | Bemerkung pro Zeile, Zeilen entfernen, Anfrage löschen | umgesetzt |
 | Hinweis "Laut PDB verfügbar bei" für Pflanzen mit öffentlicher Verfügbarkeit | umgesetzt |
@@ -175,7 +178,7 @@ Netzwerk-Sync zwischen Gärtnereien (Verfügbarkeiten), Änderungshistorie, öff
 ### 4.5 Datenschutz
 
 - Keine Analyse- oder Tracking-Dienste, keine fremden Server für Schriften, Icons oder Skripte
-- Cookie nur bei Anmeldung, Anmeldeseite oder Zugangscode, dazu die Hell/Dunkel-Einstellung, die nur im Browser gespeichert wird
+- Cookie nur bei Anmeldung, Anmeldeseite, Zugangscode oder beim Anlegen einer Anfrageliste ohne Konto (`pdb_anf`), dazu die Hell/Dunkel-Einstellung, die nur im Browser gespeichert wird
 - Serverprotokolle liegen beim Hoster, Details in der Datenschutzerklärung
 
 ### 4.6 Wartbarkeit

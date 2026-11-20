@@ -80,6 +80,15 @@ class PdbApiPlugin extends Plugin
             return;
         }
 
+        // Schreibende Anfragen nur von der eigenen Seite (Schutz gegen CSRF, zusaetzlich zu SameSite=Lax der Cookies)
+        if ($this->isForeignWrite()) {
+            $this->grav->close(new Response(403, [
+                'Content-Type' => 'application/json; charset=utf-8',
+                'Cache-Control' => 'private, no-store',
+            ], json_encode(['error' => 'Anfrage von fremder Herkunft abgelehnt.'], JSON_UNESCAPED_UNICODE)));
+            return;
+        }
+
         $apiDir = __DIR__ . '/../../api/';
         require_once $apiDir . '_common.php';
         require_once $apiDir . $route['file'];
@@ -93,5 +102,46 @@ class PdbApiPlugin extends Plugin
 
         $response = new Response($status, $headers, $body);
         $this->grav->close($response);
+    }
+
+    /**
+     * CSRF-Schutz: Schreibende Anfragen (alles ausser GET, HEAD, OPTIONS) muessen von der eigenen Seite kommen.
+     * 1. Browser-Header Sec-Fetch-Site (alle aktuellen Browser): "same-origin" (eigene Seite) und "none" (direkte
+     *    Eingabe) sind in Ordnung; "same-site" (andere Subdomain) und "cross-site" werden abgelehnt.
+     * 2. Fehlt er: Origin, sonst Referer; der Host muss dem Host dieser Anfrage entsprechen ("null" gilt als fremd).
+     * 3. Fehlen alle drei, ist es kein Browser mit fremder Seite im Spiel (Skripte, Tests): durchlassen.
+     */
+    private function isForeignWrite(): bool
+    {
+        $method = strtoupper((string)($_SERVER['REQUEST_METHOD'] ?? 'GET'));
+        if (in_array($method, ['GET', 'HEAD', 'OPTIONS'], true)) {
+            return false;
+        }
+
+        $site = strtolower(trim((string)($_SERVER['HTTP_SEC_FETCH_SITE'] ?? '')));
+        if ($site !== '') {
+            return !in_array($site, ['same-origin', 'none'], true);
+        }
+
+        $norm = static function (string $authority): string {
+            // Standardports weglassen, damit "host" und "host:443" gleich gelten
+            return preg_replace('/:(80|443)$/', '', strtolower(trim($authority)));
+        };
+        $host = $norm((string)($_SERVER['HTTP_HOST'] ?? ''));
+
+        foreach (['HTTP_ORIGIN', 'HTTP_REFERER'] as $key) {
+            $value = trim((string)($_SERVER[$key] ?? ''));
+            if ($value === '') {
+                continue;
+            }
+            $parts = parse_url($value);
+            if ($parts === false || empty($parts['host'])) {
+                return true; // "null" oder unlesbar
+            }
+            $authority = $parts['host'] . (isset($parts['port']) ? ':' . $parts['port'] : '');
+            return $host === '' || $norm($authority) !== $host;
+        }
+
+        return false;
     }
 }

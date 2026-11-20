@@ -75,14 +75,14 @@ function pdbUpdatePreview() {
     // Build botanical name
     var botName = genus;
     if (species) botName += ' ' + species;
-    if (subspecies) botName += ' subsp. ' + subspecies.toLowerCase();
+    if (subspecies) botName += ' ssp. ' + subspecies.toLowerCase();
     if (cultivar) botName += " '" + cultivar + "'";
     if (ecotype) botName += ' [' + ecotype + ']';
 
     // Build webname
     var parts = [genus.toLowerCase()];
     if (species) parts.push(species);
-    if (subspecies) parts.push(subspecies.toLowerCase());
+    if (subspecies) { parts.push('ssp'); parts.push(subspecies.toLowerCase()); }
     if (cultivar) parts.push(cultivar.toLowerCase());
     if (ecotype) parts.push(ecotype.toLowerCase());
     var webname = transliterateAll(parts.join('-'));

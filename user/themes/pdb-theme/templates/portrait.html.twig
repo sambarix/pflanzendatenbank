@@ -8,7 +8,17 @@
 {% block content %}
 <div class="pdb-portrait" id="pdb-portrait">
 
-    <a class="pdb-portrait-back" href="{{ base_url_relative }}/liste">← Zurück zur Liste</a>
+    {# Zurueck zur Liste mit der zuletzt gewaehlten Auswahl (Suche, Kategorie, Seite): liste.js merkt sie in sessionStorage #}
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        try {
+            var u = sessionStorage.getItem('pdb_liste_url');
+            var a = document.getElementById('pdb-portrait-back');
+            if (a && u && u.charAt(0) === '/' && u.charAt(1) !== '/') a.setAttribute('href', u);
+        } catch (e) {}
+    });
+    </script>
+    <a class="pdb-portrait-back" id="pdb-portrait-back" href="{{ base_url_relative }}/liste">← Zurück zur Liste</a>
 
     <div id="pdb-portrait-content">
         <div class="pdb-portrait-error">Pflanze wird geladen...</div>
@@ -131,6 +141,7 @@
             field('Unterart', val(d,'subspecies')),
             field('Sorte',    val(d,'cultivar')),
             field('Klasse',   val(d,'class_group')),
+            field('PSR-Nr.',  val(d,'psr_number')),
             field('Ökotyp',   val(d,'ecotype')),
         ]);
 

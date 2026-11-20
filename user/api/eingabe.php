@@ -538,7 +538,7 @@ function pdb_eingabe_build_names(array $input): array
 
     $botanicalName = $genus;
     if ($species !== '')    { $botanicalName .= ' ' . $species; }
-    if ($subspecies !== '') { $botanicalName .= ' subsp. ' . mb_strtolower($subspecies); }
+    if ($subspecies !== '') { $botanicalName .= ' ssp. ' . mb_strtolower($subspecies); }   // "ssp." wie in den Importen (frueher "subsp.")
     if ($cultivar !== '')   { $botanicalName .= " '" . $cultivar . "'"; }
     if ($ecotype !== '')    { $botanicalName .= ' [' . $ecotype . ']'; }
 
@@ -613,7 +613,7 @@ function pdb_eingabe_web_name(string $genus, string $species, string $subspecies
 {
     $parts = [mb_strtolower($genus)];
     if ($species !== '')    { $parts[] = $species; }
-    if ($subspecies !== '') { $parts[] = mb_strtolower($subspecies); }
+    if ($subspecies !== '') { $parts[] = 'ssp'; $parts[] = mb_strtolower($subspecies); }   // wie pn.web() der Importe: ...-ssp-unterart-...
     if ($cultivar !== '')   { $parts[] = mb_strtolower($cultivar); }
     if ($ecotype !== '')    { $parts[] = mb_strtolower($ecotype); }
 

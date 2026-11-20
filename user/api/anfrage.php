@@ -6,11 +6,14 @@
  * exportiert sie als CSV oder Excel zum Versand an Anbieter.
  *
  * Die Listen liegen in der Gaertnerei-DB des eingeloggten Kontos (Tabellen request_lists und
- * request_items, werden bei Bedarf angelegt). plants.db wird nur gelesen: Auswahl von Pflanzen
- * und Hinweis "laut PDB verfuegbar bei ...". Der DB-Pfad kommt aus dem Login, nie aus dem Browser.
+ * request_items, werden bei Bedarf angelegt). Ohne Konto (oeffentlich, z.B. Gemuese-, Obst-,
+ * Ackerbau) gibt es eine anonyme Liste in einer eigenen kleinen DB pro Besucher, gefunden ueber
+ * ein Cookie (siehe pdb_anfrage_anon_*). plants.db wird nur gelesen: Auswahl von Pflanzen
+ * und Hinweis "laut PDB verfuegbar bei ...". Der DB-Pfad kommt aus dem Login bzw. aus dem
+ * Cookie-Token (nur 32 Hex-Zeichen), nie als Pfad aus dem Browser.
  * Reine Bibliotheksdatei - wird vom pdb-api-Plugin eingebunden, NIE direkt per HTTP aufgerufen.
  *
- * Actions: lists, list_create, list_delete, search, items, add_master, add_free, add_paste,
+ * Actions: lists, list_create, list_rename, list_delete, list_set_sender, search, items, add_master, add_free, add_paste,
  *          set_note, remove_item, autocomplete_genus, autocomplete_species, autocomplete_cultivar,
  *          export_csv, export_xlsx
  */
@@ -32,10 +35,11 @@ function pdb_anfrage_h($s): string
 
 function pdb_api_anfrage(\Grav\Common\Grav $grav): array
 {
-    $nursery = pdb_current_nursery($grav, false); // auch Planer (Gruppe "planer") duerfen Anfragelisten fuehren
-    if (isset($nursery['error'])) {
-        return pdb_anfrage_json(['error' => $nursery['error']], $nursery['status']);
-    }
+    // Mit Konto (auch Planer, Gruppe "planer"): Listen in der eigenen DB des Kontos.
+    // Ohne Konto: anonyme Liste, eine kleine DB pro Besucher, gefunden ueber ein Cookie (siehe pdb_anfrage_anon_*).
+    $nursery = pdb_current_nursery($grav, false);
+    $anon = isset($nursery['error']);
+
     $masterPath = GRAV_ROOT . '/user/data/sqlite/plants.db';
     if (!is_file($masterPath)) {
         return pdb_anfrage_json(['error' => 'Stammdaten-Datenbank nicht gefunden.'], 500);
@@ -43,17 +47,49 @@ function pdb_api_anfrage(\Grav\Common\Grav $grav): array
 
     $action = (string)($_GET['action'] ?? $_POST['action'] ?? '');
     $isPost = ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST';
-    $writeActions = ['list_create', 'list_delete', 'add_master', 'add_free', 'add_paste', 'set_note', 'remove_item'];
+    $writeActions = ['list_create', 'list_rename', 'list_delete', 'list_set_sender', 'add_master', 'add_free', 'add_paste', 'set_note', 'remove_item'];
     if (in_array($action, $writeActions, true) && !$isPost) {
         return pdb_anfrage_json(['error' => 'Nur per POST.'], 405);
     }
 
+    // Suche und Autovervollstaendigung lesen nur plants.db und brauchen keine Liste
+    $needsDb = !in_array($action, ['search', 'autocomplete_genus', 'autocomplete_species', 'autocomplete_cultivar'], true);
+
+    $dbPath = $anon ? '' : $nursery['path'];
+    $token = '';
+    $newAnon = false;
+    if ($anon && $needsDb) {
+        $token = pdb_anfrage_anon_token();
+        $existing = $token !== '' ? pdb_anfrage_anon_dir() . '/' . $token . '.db' : '';
+        if ($existing !== '' && is_file($existing)) {
+            $dbPath = $existing;
+            @touch($dbPath); // Aufbewahrungsfrist laeuft ab dem letzten Besuch
+        } elseif ($action === 'list_create') {
+            $new = pdb_anfrage_anon_new();
+            if (isset($new['error'])) {
+                return pdb_anfrage_json(['error' => $new['error']], $new['status'] ?? 500);
+            }
+            $token = $new['token'];
+            $dbPath = $new['path'];
+            $newAnon = true;
+        } elseif ($action === 'lists') {
+            return pdb_anfrage_json([]); // noch keine Liste: nichts anlegen
+        } else {
+            return pdb_anfrage_json(['error' => 'Liste nicht gefunden.'], 404);
+        }
+        // Grenzen fuer anonyme Listen (Konten bleiben wie bisher)
+        $GLOBALS['pdb_anf_max_items'] = 1000;
+    }
+
+    $db = null;
     try {
-        $db = new SQLite3($nursery['path'], SQLITE3_OPEN_READWRITE);
-        $db->enableExceptions(true);
-        $db->busyTimeout(5000);
-        $db->exec('PRAGMA foreign_keys=ON');
-        pdb_anfrage_schema($db);
+        if ($needsDb) {
+            $db = new SQLite3($dbPath, SQLITE3_OPEN_READWRITE | ($newAnon ? SQLITE3_OPEN_CREATE : 0));
+            $db->enableExceptions(true);
+            $db->busyTimeout(5000);
+            $db->exec('PRAGMA foreign_keys=ON');
+            pdb_anfrage_schema($db);
+        }
         $mdb = new SQLite3($masterPath, SQLITE3_OPEN_READONLY);
         $mdb->enableExceptions(true);
         $mdb->busyTimeout(5000);
@@ -65,30 +101,109 @@ function pdb_api_anfrage(\Grav\Common\Grav $grav): array
     try {
         $listId = (int)($_GET['list_id'] ?? $_POST['list_id'] ?? 0);
         switch ($action) {
-            case 'lists':                 return pdb_anfrage_lists($db);
-            case 'list_create':           return pdb_anfrage_list_create($db);
-            case 'list_delete':           return pdb_anfrage_list_delete($db, $listId);
-            case 'search':                return pdb_anfrage_search($mdb);
-            case 'items':                 return pdb_anfrage_items($db, $mdb, $listId);
-            case 'add_master':            return pdb_anfrage_add_master($db, $mdb, $listId);
-            case 'add_free':              return pdb_anfrage_add_free($db, $mdb, $listId);
-            case 'add_paste':             return pdb_anfrage_add_paste($db, $mdb, $listId);
-            case 'set_note':              return pdb_anfrage_set_note($db);
-            case 'remove_item':           return pdb_anfrage_remove_item($db);
-            case 'autocomplete_genus':    return pdb_anfrage_autocomplete($mdb, 'genus');
-            case 'autocomplete_species':  return pdb_anfrage_autocomplete($mdb, 'species');
-            case 'autocomplete_cultivar': return pdb_anfrage_autocomplete($mdb, 'cultivar');
-            case 'export_csv':            return pdb_anfrage_export_csv($db, $listId);
-            case 'export_xlsx':           return pdb_anfrage_export_xlsx($db, $listId, $grav['user']);
+            case 'lists':                 $res = pdb_anfrage_lists($db); break;
+            case 'list_create':           $res = pdb_anfrage_list_create($db, $anon ? 3 : 50); break;
+            case 'list_rename':           $res = pdb_anfrage_list_rename($db, $listId); break;
+            case 'list_delete':           $res = pdb_anfrage_list_delete($db, $listId); break;
+            case 'list_set_sender':       $res = pdb_anfrage_list_set_sender($db, $listId); break;
+            case 'search':                $res = pdb_anfrage_search($mdb); break;
+            case 'items':                 $res = pdb_anfrage_items($db, $mdb, $listId); break;
+            case 'add_master':            $res = pdb_anfrage_add_master($db, $mdb, $listId); break;
+            case 'add_free':              $res = pdb_anfrage_add_free($db, $mdb, $listId); break;
+            case 'add_paste':             $res = pdb_anfrage_add_paste($db, $mdb, $listId); break;
+            case 'set_note':              $res = pdb_anfrage_set_note($db); break;
+            case 'remove_item':           $res = pdb_anfrage_remove_item($db); break;
+            case 'autocomplete_genus':    $res = pdb_anfrage_autocomplete($mdb, 'genus'); break;
+            case 'autocomplete_species':  $res = pdb_anfrage_autocomplete($mdb, 'species'); break;
+            case 'autocomplete_cultivar': $res = pdb_anfrage_autocomplete($mdb, 'cultivar'); break;
+            case 'export_csv':            $res = pdb_anfrage_export_csv($db, $listId); break;
+            case 'export_xlsx':           $res = pdb_anfrage_export_xlsx($db, $listId, $anon ? null : $grav['user']); break;
             default:
                 return pdb_anfrage_json(['error' => 'Unbekannte Aktion.'], 400);
         }
+        if ($anon && $token !== '') {
+            $res[2] = $res[2] ?? 200;
+            $res[3] = ($res[3] ?? []) + ['Set-Cookie' => pdb_anfrage_anon_cookie($token)]; // Cookie bei jedem Zugriff verlaengern
+        }
+        return $res;
     } catch (\Throwable $e) {
         error_log('PDB Anfrage (' . $action . '): ' . $e->getMessage());
         return pdb_anfrage_json(['error' => 'Serverfehler.'], 500);
     } finally {
-        $db->close();
+        if ($db) {
+            $db->close();
+        }
         $mdb->close();
+    }
+}
+
+// ============================================================
+// Anonyme Listen (ohne Konto): eine kleine DB pro Besucher
+// ============================================================
+// Der Besucher bekommt beim Anlegen der ersten Liste einen zufaelligen Token (32 Hex-Zeichen) als Cookie.
+// Der Dateipfad ergibt sich allein aus diesem Token: kein Zugriff auf fremde Listen, keine ID zum Raten.
+// user/data ist per .htaccess gesperrt. Dateien ohne Besuch seit 90 Tagen werden geloescht.
+
+const PDB_ANF_ANON_DAYS = 90;
+
+function pdb_anfrage_anon_dir(): string
+{
+    return GRAV_ROOT . '/user/data/sqlite/anfrage';
+}
+
+/** Token aus dem Cookie, nur wenn er genau die erwartete Form hat (Schutz vor Pfadtricks). */
+function pdb_anfrage_anon_token(): string
+{
+    $t = (string)($_COOKIE['pdb_anf'] ?? '');
+    return preg_match('/^[a-f0-9]{32}$/', $t) ? $t : '';
+}
+
+function pdb_anfrage_anon_cookie(string $token): string
+{
+    $secure = !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off';
+    return 'pdb_anf=' . $token . '; Max-Age=' . (PDB_ANF_ANON_DAYS * 86400) . '; Path=/; HttpOnly; SameSite=Lax' . ($secure ? '; Secure' : '');
+}
+
+/** Neuen Besucher anlegen: Tageslimit pro Anschluss (nur ein Tages-Hash der IP, nichts Dauerhaftes), danach Aufraeumen. */
+function pdb_anfrage_anon_new(): array
+{
+    $dir = pdb_anfrage_anon_dir();
+    if (!is_dir($dir) && !@mkdir($dir, 0775, true) && !is_dir($dir)) {
+        return ['error' => 'Speicherort für Listen nicht verfügbar.', 'status' => 500];
+    }
+    $day  = date('Ymd');
+    $rate = $dir . '/_rate-' . $day . '-' . substr(hash('sha256', (string)($_SERVER['REMOTE_ADDR'] ?? '') . '|' . $day . '|pdb-anf'), 0, 16) . '.cnt';
+    $n = is_file($rate) ? (int)@file_get_contents($rate) : 0;
+    if ($n >= 20) {
+        return ['error' => 'Von diesem Anschluss wurden heute schon viele Listen angelegt. Bitte morgen wieder versuchen oder mit einem Konto anmelden.', 'status' => 429];
+    }
+    @file_put_contents($rate, (string)($n + 1), LOCK_EX);
+    pdb_anfrage_anon_cleanup($dir);
+    $token = bin2hex(random_bytes(16));
+    return ['token' => $token, 'path' => $dir . '/' . $token . '.db'];
+}
+
+/** Hoechstens einmal pro Tag: alte anonyme Listen und Zaehlerdateien loeschen. */
+function pdb_anfrage_anon_cleanup(string $dir): void
+{
+    $stamp = $dir . '/_cleanup.stamp';
+    if (is_file($stamp) && filemtime($stamp) > time() - 86400) {
+        return;
+    }
+    @touch($stamp);
+    $old = time() - PDB_ANF_ANON_DAYS * 86400;
+    foreach (glob($dir . '/*.db') ?: [] as $f) {
+        if (filemtime($f) < $old) {
+            @unlink($f);
+            @unlink($f . '-wal');
+            @unlink($f . '-shm');
+            @unlink($f . '-journal');
+        }
+    }
+    foreach (glob($dir . '/_rate-*.cnt') ?: [] as $f) {
+        if (filemtime($f) < time() - 2 * 86400) {
+            @unlink($f);
+        }
     }
 }
 
@@ -115,6 +230,18 @@ function pdb_anfrage_schema(SQLite3 $db): void
         created_at      TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     )");
     $db->exec('CREATE INDEX IF NOT EXISTS idx_request_items_list ON request_items(list_id)');
+
+    // Betriebsname pro Liste (steht im Kopf der Excel-Datei): Spalte bei aelteren DBs nachruesten
+    $hasSender = false;
+    $cols = $db->query('PRAGMA table_info(request_lists)');
+    while ($c = $cols->fetchArray(SQLITE3_ASSOC)) {
+        if ($c['name'] === 'sender_name') {
+            $hasSender = true;
+        }
+    }
+    if (!$hasSender) {
+        $db->exec("ALTER TABLE request_lists ADD COLUMN sender_name TEXT NOT NULL DEFAULT ''");
+    }
 }
 
 /** Steuerzeichen raus, Leerraum glaetten, Laenge begrenzen. */
@@ -171,7 +298,7 @@ function pdb_anfrage_find_master(SQLite3 $mdb, string $g, string $s, string $c):
 
 /**
  * Pflanze in die Liste aufnehmen.
- * @return string 'added' | 'duplicate' | 'invalid'
+ * @return string 'added' | 'duplicate' | 'invalid' | 'limit'
  */
 function pdb_anfrage_add(SQLite3 $db, SQLite3 $mdb, int $listId, string $g, string $s, string $c,
                          ?int $masterId = null, ?string $botanical = null): string
@@ -187,6 +314,17 @@ function pdb_anfrage_add(SQLite3 $db, SQLite3 $mdb, int $listId, string $g, stri
     $dup->bindValue(':n', $name, SQLITE3_TEXT);
     if ($dup->execute()->fetchArray(SQLITE3_NUM)) {
         return 'duplicate';
+    }
+
+    // Obergrenze nur fuer anonyme Listen (in pdb_api_anfrage gesetzt)
+    $maxItems = (int)($GLOBALS['pdb_anf_max_items'] ?? 0);
+    if ($maxItems > 0) {
+        $cnt = $db->prepare('SELECT COUNT(*) FROM request_items WHERE list_id = :l');
+        $cnt->bindValue(':l', $listId, SQLITE3_INTEGER);
+        $have = $cnt->execute()->fetchArray(SQLITE3_NUM);
+        if ($have && (int)$have[0] >= $maxItems) {
+            return 'limit';
+        }
     }
 
     if ($masterId === null) {
@@ -214,7 +352,7 @@ function pdb_anfrage_list_exists(SQLite3 $db, int $listId): bool
     return (bool)$st->execute()->fetchArray(SQLITE3_NUM);
 }
 
-function pdb_anfrage_result_message(int $added, int $dup, int $invalid): string
+function pdb_anfrage_result_message(int $added, int $dup, int $invalid, int $limit = 0): string
 {
     $m = $added . ' Pflanze(n) hinzugefügt';
     if ($dup) {
@@ -222,6 +360,9 @@ function pdb_anfrage_result_message(int $added, int $dup, int $invalid): string
     }
     if ($invalid) {
         $m .= ', ' . $invalid . ' nicht erkannt';
+    }
+    if ($limit) {
+        $m .= ', ' . $limit . ' nicht aufgenommen (Obergrenze der Liste erreicht)';
     }
     return $m . '.';
 }
@@ -232,29 +373,61 @@ function pdb_anfrage_result_message(int $added, int $dup, int $invalid): string
 
 function pdb_anfrage_lists(SQLite3 $db): array
 {
-    $res = $db->query('SELECT l.id, l.title, l.created_at,
+    $res = $db->query('SELECT l.id, l.title, l.sender_name, l.created_at,
                               (SELECT COUNT(*) FROM request_items i WHERE i.list_id = l.id) AS n
                        FROM request_lists l ORDER BY l.id DESC');
     $out = [];
     while ($r = $res->fetchArray(SQLITE3_ASSOC)) {
-        $out[] = ['id' => (int)$r['id'], 'title' => $r['title'], 'count' => (int)$r['n'], 'created_at' => $r['created_at']];
+        $out[] = ['id' => (int)$r['id'], 'title' => $r['title'], 'sender' => (string)$r['sender_name'],
+                  'count' => (int)$r['n'], 'created_at' => $r['created_at']];
     }
     return pdb_anfrage_json($out);
 }
 
-function pdb_anfrage_list_create(SQLite3 $db): array
+function pdb_anfrage_list_create(SQLite3 $db, int $maxLists = 50): array
 {
     $title = pdb_anfrage_clean($_POST['title'] ?? '', 120);
     if ($title === '') {
         $title = 'Anfrage ' . date('d.m.Y');
     }
-    if ((int)$db->querySingle('SELECT COUNT(*) FROM request_lists') >= 50) {
-        return pdb_anfrage_json(['error' => 'Maximal 50 Listen. Bitte zuerst alte Listen löschen.'], 400);
+    if ((int)$db->querySingle('SELECT COUNT(*) FROM request_lists') >= $maxLists) {
+        return pdb_anfrage_json(['error' => 'Maximal ' . $maxLists . ' Listen. Bitte zuerst alte Listen löschen.'], 400);
     }
-    $st = $db->prepare('INSERT INTO request_lists (title) VALUES (:t)');
+    $st = $db->prepare('INSERT INTO request_lists (title, sender_name) VALUES (:t, :s)');
     $st->bindValue(':t', $title, SQLITE3_TEXT);
+    $st->bindValue(':s', pdb_anfrage_clean($_POST['sender'] ?? '', 120), SQLITE3_TEXT);
     $st->execute();
     return pdb_anfrage_json(['success' => true, 'id' => (int)$db->lastInsertRowID(), 'title' => $title]);
+}
+
+/** Titel der Liste aendern (darf nicht leer sein). */
+function pdb_anfrage_list_rename(SQLite3 $db, int $listId): array
+{
+    if (!pdb_anfrage_list_exists($db, $listId)) {
+        return pdb_anfrage_json(['error' => 'Liste nicht gefunden.'], 404);
+    }
+    $title = pdb_anfrage_clean($_POST['title'] ?? '', 120);
+    if ($title === '') {
+        return pdb_anfrage_json(['error' => 'Der Titel darf nicht leer sein.'], 400);
+    }
+    $st = $db->prepare('UPDATE request_lists SET title = :t WHERE id = :l');
+    $st->bindValue(':t', $title, SQLITE3_TEXT);
+    $st->bindValue(':l', $listId, SQLITE3_INTEGER);
+    $st->execute();
+    return pdb_anfrage_json(['success' => true, 'title' => $title]);
+}
+
+/** Betriebsname der Liste aendern (optional, darf leer sein). */
+function pdb_anfrage_list_set_sender(SQLite3 $db, int $listId): array
+{
+    if (!pdb_anfrage_list_exists($db, $listId)) {
+        return pdb_anfrage_json(['error' => 'Liste nicht gefunden.'], 404);
+    }
+    $st = $db->prepare('UPDATE request_lists SET sender_name = :s WHERE id = :l');
+    $st->bindValue(':s', pdb_anfrage_clean($_POST['sender'] ?? '', 120), SQLITE3_TEXT);
+    $st->bindValue(':l', $listId, SQLITE3_INTEGER);
+    $st->execute();
+    return pdb_anfrage_json(['success' => true]);
 }
 
 function pdb_anfrage_list_delete(SQLite3 $db, int $listId): array
@@ -280,6 +453,9 @@ function pdb_anfrage_like(string $s): string
 function pdb_anfrage_search(SQLite3 $mdb): array
 {
     $term = pdb_anfrage_clean($_GET['term'] ?? '', 80);
+    if ($term === '') {
+        return pdb_anfrage_html(''); // leeres Feld: nichts anzeigen (die Anleitung ueber dem Feld nennt die 2 Zeichen)
+    }
     if (mb_strlen($term) < 2) {
         return pdb_anfrage_html('<div class="pdb-search-hint">Mindestens 2 Zeichen eingeben...</div>');
     }
@@ -464,22 +640,30 @@ function pdb_anfrage_add_master(SQLite3 $db, SQLite3 $mdb, int $listId): array
     if (!is_array($ids) || !$ids) {
         return pdb_anfrage_json(['error' => 'Keine Pflanzen ausgewählt.'], 400);
     }
-    $added = $dup = $invalid = 0;
-    foreach (array_slice($ids, 0, 200) as $pid) {
-        $pid = (int)$pid;
-        $st = $mdb->prepare('SELECT id, genus, species, cultivar, botanical_name FROM plants WHERE id = :p');
-        $st->bindValue(':p', $pid, SQLITE3_INTEGER);
-        $p = $st->execute()->fetchArray(SQLITE3_ASSOC);
-        if (!$p) {
-            $invalid++;
-            continue;
+    $added = $dup = $invalid = $limit = 0;
+    // Eine Transaktion pro Anfrage statt eines Schreibvorgangs pro Zeile (sonst belegt eine lange Liste den Server sehr lange)
+    $db->exec('BEGIN IMMEDIATE');
+    try {
+        foreach (array_slice($ids, 0, 200) as $pid) {
+            $pid = (int)$pid;
+            $st = $mdb->prepare('SELECT id, genus, species, cultivar, botanical_name FROM plants WHERE id = :p');
+            $st->bindValue(':p', $pid, SQLITE3_INTEGER);
+            $p = $st->execute()->fetchArray(SQLITE3_ASSOC);
+            if (!$p) {
+                $invalid++;
+                continue;
+            }
+            $r = pdb_anfrage_add($db, $mdb, $listId, (string)$p['genus'], (string)($p['species'] ?? ''),
+                                 (string)($p['cultivar'] ?? ''), (int)$p['id'], (string)$p['botanical_name']);
+            match ($r) { 'added' => $added++, 'duplicate' => $dup++, 'limit' => $limit++, default => $invalid++ };
         }
-        $r = pdb_anfrage_add($db, $mdb, $listId, (string)$p['genus'], (string)($p['species'] ?? ''),
-                             (string)($p['cultivar'] ?? ''), (int)$p['id'], (string)$p['botanical_name']);
-        match ($r) { 'added' => $added++, 'duplicate' => $dup++, default => $invalid++ };
+        $db->exec('COMMIT');
+    } catch (\Throwable $e) {
+        $db->exec('ROLLBACK');
+        throw $e;
     }
     return pdb_anfrage_json(['success' => true, 'added' => $added,
-                             'message' => pdb_anfrage_result_message($added, $dup, $invalid)]);
+                             'message' => pdb_anfrage_result_message($added, $dup, $invalid, $limit)]);
 }
 
 function pdb_anfrage_add_free(SQLite3 $db, SQLite3 $mdb, int $listId): array
@@ -494,6 +678,9 @@ function pdb_anfrage_add_free(SQLite3 $db, SQLite3 $mdb, int $listId): array
     }
     if ($r === 'duplicate') {
         return pdb_anfrage_json(['error' => 'Diese Pflanze steht schon in der Liste.'], 400);
+    }
+    if ($r === 'limit') {
+        return pdb_anfrage_json(['error' => 'Die Liste hat die Obergrenze erreicht. Bitte eine neue Anfrage anlegen.'], 400);
     }
     return pdb_anfrage_json(['success' => true, 'message' => '1 Pflanze hinzugefügt.']);
 }
@@ -537,17 +724,25 @@ function pdb_anfrage_add_paste(SQLite3 $db, SQLite3 $mdb, int $listId): array
     }
     $text = mb_substr((string)($_POST['text'] ?? ''), 0, 30000);
     $lines = preg_split('/\r\n|\r|\n/', $text) ?: [];
-    $added = $dup = $invalid = 0;
-    foreach (array_slice($lines, 0, 500) as $line) {
-        $parts = pdb_anfrage_parse_line($line);
-        if ($parts === null) {
-            continue;
+    $added = $dup = $invalid = $limit = 0;
+    // Eine Transaktion pro Anfrage statt eines Schreibvorgangs pro Zeile (sonst belegt eine lange Liste den Server sehr lange)
+    $db->exec('BEGIN IMMEDIATE');
+    try {
+        foreach (array_slice($lines, 0, 500) as $line) {
+            $parts = pdb_anfrage_parse_line($line);
+            if ($parts === null) {
+                continue;
+            }
+            $r = pdb_anfrage_add($db, $mdb, $listId, $parts[0], $parts[1], $parts[2]);
+            match ($r) { 'added' => $added++, 'duplicate' => $dup++, 'limit' => $limit++, default => $invalid++ };
         }
-        $r = pdb_anfrage_add($db, $mdb, $listId, $parts[0], $parts[1], $parts[2]);
-        match ($r) { 'added' => $added++, 'duplicate' => $dup++, default => $invalid++ };
+        $db->exec('COMMIT');
+    } catch (\Throwable $e) {
+        $db->exec('ROLLBACK');
+        throw $e;
     }
     return pdb_anfrage_json(['success' => true, 'added' => $added,
-                             'message' => pdb_anfrage_result_message($added, $dup, $invalid)]);
+                             'message' => pdb_anfrage_result_message($added, $dup, $invalid, $limit)]);
 }
 
 function pdb_anfrage_set_note(SQLite3 $db): array
@@ -571,10 +766,10 @@ function pdb_anfrage_remove_item(SQLite3 $db): array
 // Export (CSV und Excel)
 // ============================================================
 
-/** @return array{title:string,items:array<int,array>}|null */
+/** @return array{title:string,sender:string,items:array<int,array>}|null */
 function pdb_anfrage_load(SQLite3 $db, int $listId): ?array
 {
-    $st = $db->prepare('SELECT title FROM request_lists WHERE id = :l');
+    $st = $db->prepare('SELECT title, sender_name FROM request_lists WHERE id = :l');
     $st->bindValue(':l', $listId, SQLITE3_INTEGER);
     $t = $st->execute()->fetchArray(SQLITE3_ASSOC);
     if (!$t) {
@@ -588,7 +783,7 @@ function pdb_anfrage_load(SQLite3 $db, int $listId): ?array
     while ($r = $res->fetchArray(SQLITE3_ASSOC)) {
         $items[] = $r;
     }
-    return ['title' => (string)$t['title'], 'items' => $items];
+    return ['title' => (string)$t['title'], 'sender' => (string)$t['sender_name'], 'items' => $items];
 }
 
 function pdb_anfrage_file_slug(string $title): string
@@ -648,18 +843,25 @@ function pdb_anfrage_export_xlsx(SQLite3 $db, int $listId, $user): array
     $num   = fn($ref, $n, $style) => '<c r="' . $ref . '" s="' . $style . '"><v>' . (int)$n . '</v></c>';
     $blank = fn($ref, $style) => '<c r="' . $ref . '" s="' . $style . '"/>';
 
-    $from = array_filter([
-        pdb_anfrage_clean($user->get('fullname') ?: (string)$user->username, 120),
-        pdb_anfrage_clean($user->get('betrieb_ort') ?? '', 80),
-        pdb_anfrage_clean($user->get('email') ?? '', 120),
-        pdb_anfrage_clean($user->get('betrieb_telefon') ?? '', 40),
-    ], fn($v) => $v !== '');
+    // Absender: Betriebsname der Liste. Mit Konto zusaetzlich Ort, Mail und Telefon aus dem Profil
+    // (ohne Betriebsname der Profilname); ohne Konto nur der freiwillige Betriebsname.
+    $sender = pdb_anfrage_clean($data['sender'] ?? '', 120);
+    if ($user) {
+        $from = array_filter([
+            $sender !== '' ? $sender : pdb_anfrage_clean($user->get('fullname') ?: (string)$user->username, 120),
+            pdb_anfrage_clean($user->get('betrieb_ort') ?? '', 80),
+            pdb_anfrage_clean($user->get('email') ?? '', 120),
+            pdb_anfrage_clean($user->get('betrieb_telefon') ?? '', 40),
+        ], fn($v) => $v !== '');
+    } else {
+        $from = $sender !== '' ? [$sender] : [];
+    }
 
     $n    = count($data['items']);
     $last = 5 + max($n, 1);
     $rows = '';
     $rows .= '<row r="1" ht="24" customHeight="1">' . $str('A1', 'Anfrage: ' . $data['title'], 4) . '</row>';
-    $rows .= '<row r="2">' . $str('A2', 'Von: ' . implode(' · ', $from) . '   Datum: ' . date('d.m.Y'), 5) . '</row>';
+    $rows .= '<row r="2">' . $str('A2', ($from ? 'Von: ' . implode(' · ', $from) . '   ' : '') . 'Datum: ' . date('d.m.Y'), 5) . '</row>';
     $rows .= '<row r="3">' . $str('A3', 'Bitte pro Zeile in den gelb hinterlegten Feldern antworten: verfügbar ja/nein, Qualität, Form, Menge, Preis.', 5) . '</row>';
 
     $head = ['Nr.', 'Botanischer Name', 'Gattung', 'Art', 'Sorte', 'Bemerkung Anfragende/r',

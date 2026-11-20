@@ -13,15 +13,9 @@
 {% endblock %}
 
 {% block content %}
-{% set db_path = grav.user.get('db_path') %}
-
-{% if not db_path %}
-<div class="container grid-md">
-    <div class="toast toast-error">
-        Kein Gärtnerei-Konto gefunden. Bitte zuerst <a href="{{ base_url_relative }}/registrieren">registrieren</a>.
-    </div>
-</div>
-{% else %}
+{# Die Seite ist oeffentlich. Mit Konto liegen die Listen in der eigenen Datenbank, ohne Konto in einer anonymen Liste
+   (Cookie). is_account steuert nur Vorbelegung und Hinweistext; welche Datenbank gilt, entscheidet allein die API. #}
+{% set is_account = grav.user.authenticated and authorize('site.login') and grav.user.get('db_path') %}
 
 <div class="pdb-liste-container pdb-bestand-container pdb-anfrage-container">
 
@@ -29,30 +23,64 @@
         Hier wird eine Liste von Pflanzen zusammengestellt, die zugekauft werden sollen (Vermehrungsmaterial oder
         Pflanzen aller Stadien) und von denen nicht bekannt ist, ob es sie in Bioqualität gibt. Die Liste lässt sich
         als Excel-Datei mit Auswahlfeldern zum Ankreuzen oder als CSV an Anbieter schicken.
+        {% if not is_account %}
+        Du brauchst dafür kein Konto. Deine Anfragen bleiben rund 90 Tage in diesem Browser gespeichert (Cookie).
+        {% endif %}
     </p>
 
-    {# === Liste waehlen / anlegen === #}
+    {# === Kopf: Titel und Betriebsname der aktuellen Anfrage === #}
+    {# Die Anfrage wird mit der ersten Pflanze automatisch angelegt (Standardtitel, jederzeit aenderbar). #}
     <div class="pdb-anf-listbar">
-        <label for="pdb-anf-list">Anfrage:</label>
-        <select id="pdb-anf-list" class="pdb-anf-input" onchange="pdbAnfSelect(this.value)"></select>
-        <button type="button" id="pdb-anf-delete" class="pdb-btn pdb-btn-secondary" onclick="pdbAnfDelete()" style="display:none">Anfrage löschen</button>
-        <span class="pdb-anf-spacer"></span>
-        <input type="text" id="pdb-anf-newtitle" class="pdb-anf-input" maxlength="120" placeholder="Titel der neuen Anfrage"
-               onkeydown="if (event.key === 'Enter') { pdbAnfCreate(); }">
-        <button type="button" class="pdb-btn" onclick="pdbAnfCreate()">Neue Anfrage</button>
+        <div class="pdb-anf-field">
+            <label class="pdb-anf-label" for="pdb-anf-title">Titel der Anfrage</label>
+            <div class="pdb-anf-help" id="pdb-anf-title-help"></div>
+            <input type="text" id="pdb-anf-title" class="pdb-anf-input" maxlength="120" autocomplete="off"
+                   placeholder="z.B. Stauden Frühjahr 2027" onchange="pdbAnfRename()"
+                   onkeydown="if (event.key === 'Enter') { this.blur(); }">
+        </div>
+        <div class="pdb-anf-field">
+            <label class="pdb-anf-label" for="pdb-anf-sender">Betriebsname (freiwillig)</label>
+            <div class="pdb-anf-help">Steht oben auf der Excel-Datei, damit die Anbieter wissen, von wem die Anfrage kommt.</div>
+            <input type="text" id="pdb-anf-sender" class="pdb-anf-input" maxlength="120"
+                   data-default="{{ is_account ? (grav.user.fullname ?: '')|e('html_attr') : '' }}"
+                   placeholder="z.B. Gemüsebau Muster" onchange="pdbAnfSetSender()">
+        </div>
+
+        {# Mehrere Anfragen: erst sichtbar, wenn es eine Anfrage gibt; die Auswahl erst ab zwei #}
+        <div id="pdb-anf-lists" class="pdb-anf-lists" style="display:none">
+            <div id="pdb-anf-switch" class="pdb-anf-field" style="display:none">
+                <label class="pdb-anf-label" for="pdb-anf-list">Meine Anfragen</label>
+                <select id="pdb-anf-list" class="pdb-anf-input" onchange="pdbAnfSelect(this.value)"></select>
+            </div>
+            <button type="button" id="pdb-anf-more" class="pdb-btn pdb-btn-secondary" onclick="pdbAnfMoreToggle(true)">+ Weitere Anfrage</button>
+            <button type="button" id="pdb-anf-delete" class="pdb-btn pdb-btn-secondary" onclick="pdbAnfDelete()">Diese Anfrage löschen</button>
+        </div>
+        <div id="pdb-anf-morebox" class="pdb-anf-field" style="display:none">
+            <label class="pdb-anf-label" for="pdb-anf-newtitle">Titel der weiteren Anfrage</label>
+            <input type="text" id="pdb-anf-newtitle" class="pdb-anf-input" maxlength="120" autocomplete="off" placeholder="z.B. Obstgehölze Herbst 2027"
+                   onkeydown="if (event.key === 'Enter') { pdbAnfCreate(); }">
+            <div class="pdb-anf-morebtns">
+                <button type="button" class="pdb-btn" onclick="pdbAnfCreate()">Anfrage anlegen</button>
+                <button type="button" class="pdb-btn pdb-btn-secondary" onclick="pdbAnfMoreToggle(false)">Abbrechen</button>
+            </div>
+        </div>
     </div>
 
     <div id="pdb-anf-msg" class="pdb-anf-msg" style="display:none"></div>
 
-    <div id="pdb-anf-work" style="display:none">
+    <div id="pdb-anf-work">
 
         {# === 1. Suche in der Pflanzendatenbank === #}
-        <div class="pdb-toolbar">
+        {# Aufbau aller Eingabebereiche: Feldname (schwarz, fett), Anleitung (gruen, halbfett), dann das Feld #}
+        <div class="pdb-anf-block">
+            <label class="pdb-anf-label" for="pdb-search-input">Pflanze in der Datenbank suchen</label>
+            <div class="pdb-anf-help">Botanischen oder deutschen Namen eingeben (ab 2 Zeichen), passende Pflanzen ankreuzen und hinzufügen.</div>
             <div class="pdb-search-box">
                 <input type="search"
                        id="pdb-search-input"
+                       class="pdb-anf-input"
                        name="term"
-                       placeholder="Pflanze in der Datenbank suchen (botanischer Name, deutscher Name)..."
+                       placeholder="z.B. Salvia officinalis oder Salbei"
                        autocomplete="off"
                        hx-get="{{ base_url_relative }}/pdb-api/anfrage?action=search"
                        hx-trigger="input changed delay:300ms, search"
@@ -69,7 +97,8 @@
 
         {# === 2. Freie Eingabe === #}
         <div class="pdb-anf-block">
-            <div class="pdb-anf-title">Pflanze frei eingeben (auch wenn sie nicht in der Datenbank steht)</div>
+            <div class="pdb-anf-label">Pflanze frei eingeben</div>
+            <div class="pdb-anf-help">Auch wenn sie nicht in der Datenbank steht. Die Gattung genügt, Art und Sorte sind optional.</div>
             <div class="pdb-anf-free">
                 <div>
                     <label for="pdb-anf-genus">Gattung</label>
@@ -87,35 +116,35 @@
                            onkeydown="if (event.key === 'Enter') { pdbAnfAddFree(); }">
                     <datalist id="pdb-dl-cultivar"></datalist>
                 </div>
-                <div>
-                    <button type="button" class="pdb-btn" onclick="pdbAnfAddFree()">Hinzufügen</button>
-                </div>
             </div>
+            <button type="button" class="pdb-btn" onclick="pdbAnfAddFree()">Hinzufügen</button>
         </div>
 
         {# === 3. Liste einfuegen === #}
-        <details class="pdb-anf-block">
-            <summary>Liste einfügen (eine Pflanze pro Zeile)</summary>
-            <textarea id="pdb-anf-paste" class="pdb-anf-input pdb-anf-paste" rows="5"
+        <details class="pdb-anf-block" open>
+            <summary class="pdb-anf-label">Liste einfügen</summary>
+            <div class="pdb-anf-help">Eine Pflanze pro Zeile. Zeilen aus Excel (Gattung, Art, Sorte in drei Spalten) können direkt eingefügt werden.</div>
+            <textarea id="pdb-anf-paste" class="pdb-anf-input pdb-anf-paste" rows="3" aria-label="Liste einfügen"
                       placeholder="Salvia officinalis 'Berggarten'&#10;Thymus vulgaris&#10;Lavandula angustifolia Hidcote"></textarea>
             <button type="button" class="pdb-btn" onclick="pdbAnfAddPaste()">Einfügen</button>
-            <p class="pdb-anf-hint">Zeilen aus Excel (Gattung, Art, Sorte in drei Spalten) können direkt eingefügt werden.</p>
         </details>
 
-        {# === Export und Anzahl === #}
-        <div class="pdb-anf-exportbar">
-            <a class="pdb-btn" id="pdb-anf-xlsx" href="#">Excel herunterladen (mit Auswahlfeldern)</a>
-            <a class="pdb-btn pdb-btn-secondary" id="pdb-anf-csv" href="#">CSV herunterladen</a>
-            <div class="pdb-result-info"><span id="pdb-result-count">Laden...</span></div>
-        </div>
-
-        {# === Tabelle === #}
+        {# === Tabelle mit Anzahl darueber, Export darunter: erst sichtbar, wenn die Anfrage angelegt ist === #}
+        <div id="pdb-anf-listarea" style="display:none">
+        <div class="pdb-result-info pdb-anf-countline"><span id="pdb-result-count">Laden...</span></div>
         <div class="pdb-table-wrapper">
             <table class="pdb-table pdb-table-bestand" id="pdb-anf-table">
                 <thead><tr><th>Laden...</th></tr></thead>
                 <tbody><tr><td>Daten werden geladen...</td></tr></tbody>
             </table>
         </div>
+
+        {# === Export: unter der Liste === #}
+        <div class="pdb-anf-exportbar">
+            <a class="pdb-btn" id="pdb-anf-xlsx" href="#">Excel herunterladen (mit Auswahlfeldern)</a>
+            <a class="pdb-btn pdb-btn-secondary" id="pdb-anf-csv" href="#">CSV herunterladen</a>
+        </div>
+        </div>{# end listarea #}
     </div>
 
 </div>{# end container #}
@@ -124,6 +153,8 @@
 var pdbAnfApi    = '{{ base_url_relative }}/pdb-api/anfrage';
 var pdbAnfListId = 0;
 var pdbAnfTitles = {};
+var pdbAnfSenders = {};
+var pdbAnfListCount = 0;
 
 function pdbAnfEl(id) { return document.getElementById(id); }
 
@@ -155,35 +186,60 @@ function pdbAnfStoredList() {
 }
 
 /* --- Listen --- */
+function pdbAnfToday() {
+    var d = new Date();
+    return 'Anfrage ' + ('0' + d.getDate()).slice(-2) + '.' + ('0' + (d.getMonth() + 1)).slice(-2) + '.' + d.getFullYear();
+}
+
+/* Kopfbereich je nach Zustand: ohne Anfrage der Vorschlag (Standardtitel), mit Anfrage deren Titel.
+   Die Liste (Tabelle, Export) und die Zeile "Meine Anfragen" erscheinen erst, wenn die Anfrage angelegt ist;
+   die Auswahl zum Wechseln erst ab zwei Anfragen. */
+function pdbAnfShowHead() {
+    var has = pdbAnfListId > 0;
+    pdbAnfEl('pdb-anf-title-help').textContent = has
+        ? 'Steht über der Liste und in der Excel-Datei. Du kannst ihn jederzeit ändern.'
+        : 'Vorschlag, den Du ändern kannst. Die Anfrage wird angelegt, sobald Du die erste Pflanze hinzufügst.';
+    pdbAnfEl('pdb-anf-lists').style.display = has ? 'flex' : 'none';
+    pdbAnfEl('pdb-anf-switch').style.display = pdbAnfListCount > 1 ? 'flex' : 'none';
+    pdbAnfEl('pdb-anf-listarea').style.display = has ? 'block' : 'none';
+    if (!has) { pdbAnfMoreToggle(false); }
+}
+
+function pdbAnfSetLinks(id) {
+    pdbAnfEl('pdb-anf-xlsx').href = pdbAnfApi + '?action=export_xlsx&list_id=' + id;
+    pdbAnfEl('pdb-anf-csv').href  = pdbAnfApi + '?action=export_csv&list_id=' + id;
+}
+
 function pdbAnfLoadLists(preferId, keep) {
-    fetch(pdbAnfApi + '?action=lists')
+    return fetch(pdbAnfApi + '?action=lists')
         .then(function(r) { return r.json(); })
         .then(function(lists) {
             var sel = pdbAnfEl('pdb-anf-list');
             sel.innerHTML = '';
             pdbAnfTitles = {};
+            pdbAnfSenders = {};
             if (!Array.isArray(lists)) { pdbAnfFlash(lists && lists.error ? lists.error : 'Fehler beim Laden.', false); return; }
             lists.forEach(function(l) {
                 pdbAnfTitles[l.id] = l.title;
+                pdbAnfSenders[l.id] = l.sender || '';
                 var o = document.createElement('option');
                 o.value = l.id;
                 o.textContent = l.title + ' (' + l.count + ')';
                 sel.appendChild(o);
             });
+            pdbAnfListCount = lists.length;
             if (!lists.length) {
+                /* noch keine Anfrage: Seite bleibt arbeitsbereit, die Anfrage entsteht mit der ersten Pflanze */
                 pdbAnfListId = 0;
-                pdbAnfEl('pdb-anf-work').style.display = 'none';
-                pdbAnfEl('pdb-anf-delete').style.display = 'none';
-                var o2 = document.createElement('option');
-                o2.textContent = '- noch keine Anfrage -';
-                sel.appendChild(o2);
-                var d = new Date();
-                pdbAnfEl('pdb-anf-newtitle').value = 'Anfrage ' + ('0' + d.getDate()).slice(-2) + '.' + ('0' + (d.getMonth() + 1)).slice(-2) + '.' + d.getFullYear();
+                pdbAnfEl('pdb-anf-title').value = pdbAnfToday();
+                pdbAnfEl('pdb-anf-sender').value = pdbAnfLastSender();
+                pdbAnfShowHead();
                 return;
             }
             if (keep && pdbAnfListId) {
                 /* nur die Zaehler in der Auswahl auffrischen, Meldung und Ansicht bleiben */
                 sel.value = pdbAnfListId;
+                pdbAnfShowHead();
                 return;
             }
             var want = preferId || pdbAnfStoredList();
@@ -198,12 +254,13 @@ function pdbAnfSelect(id) {
     pdbAnfListId = id;
     pdbAnfStoreList(id);
     pdbAnfEl('pdb-anf-list').value = id;
-    pdbAnfEl('pdb-anf-work').style.display = 'block';
-    pdbAnfEl('pdb-anf-delete').style.display = '';
+    pdbAnfEl('pdb-anf-title').value = pdbAnfTitles[id] || '';
+    pdbAnfEl('pdb-anf-sender').value = pdbAnfSenders[id] || pdbAnfEl('pdb-anf-sender').getAttribute('data-default') || '';
+    pdbAnfMoreToggle(false);
+    pdbAnfShowHead();
     pdbAnfFlash('');
     pdbAnfSearchClear();
-    pdbAnfEl('pdb-anf-xlsx').href = pdbAnfApi + '?action=export_xlsx&list_id=' + id;
-    pdbAnfEl('pdb-anf-csv').href  = pdbAnfApi + '?action=export_csv&list_id=' + id;
+    pdbAnfSetLinks(id);
     pdbAnfReloadItems();
 }
 
@@ -212,15 +269,86 @@ function pdbAnfReloadItems() {
     htmx.ajax('GET', pdbAnfApi + '?action=items&list_id=' + pdbAnfListId, { target: '#pdb-anf-table', swap: 'innerHTML' });
 }
 
+/* Betriebsname: mit Konto das Profil als Vorgabe, sonst der zuletzt eingegebene Name dieses Browsers */
+function pdbAnfLastSender() {
+    var def = pdbAnfEl('pdb-anf-sender').getAttribute('data-default') || '';
+    if (def) { return def; }
+    try { return window.localStorage.getItem('pdbAnfSender') || ''; } catch (e) { return ''; }
+}
+
+function pdbAnfRememberSender(v) {
+    try { window.localStorage.setItem('pdbAnfSender', v); } catch (e) {}
+}
+
+/* Betriebsname geaendert: mit Anfrage sofort speichern, sonst gilt er beim Anlegen der Anfrage */
+function pdbAnfSetSender() {
+    var v = pdbAnfEl('pdb-anf-sender').value;
+    pdbAnfRememberSender(v);
+    if (!pdbAnfListId) { return; }
+    pdbAnfSenders[pdbAnfListId] = v;
+    pdbAnfPost({ action: 'list_set_sender', list_id: pdbAnfListId, sender: v }).then(function(res) {
+        if (!res.success) { pdbAnfFlash(res.error || 'Fehler.', false); }
+    });
+}
+
+/* Titel geaendert: mit Anfrage umbenennen (leer nicht erlaubt, dann alter Titel zurueck), sonst gilt er beim Anlegen */
+function pdbAnfRename() {
+    if (!pdbAnfListId) { return; }
+    var input = pdbAnfEl('pdb-anf-title');
+    var v = input.value.trim();
+    if (v === '' || v === (pdbAnfTitles[pdbAnfListId] || '')) { input.value = pdbAnfTitles[pdbAnfListId] || ''; return; }
+    pdbAnfPost({ action: 'list_rename', list_id: pdbAnfListId, title: v }).then(function(res) {
+        if (res.success) {
+            pdbAnfTitles[pdbAnfListId] = res.title;
+            input.value = res.title;
+            pdbAnfLoadListsKeep();
+            pdbAnfReloadItems();
+        } else {
+            input.value = pdbAnfTitles[pdbAnfListId] || '';
+            pdbAnfFlash(res.error || 'Fehler.', false);
+        }
+    });
+}
+
+/* Eingabefeld fuer eine weitere Anfrage ein- und ausblenden */
+function pdbAnfMoreToggle(show) {
+    pdbAnfEl('pdb-anf-morebox').style.display = show ? 'flex' : 'none';
+    pdbAnfEl('pdb-anf-more').style.display = show ? 'none' : '';
+    if (show) {
+        pdbAnfEl('pdb-anf-newtitle').value = '';
+        pdbAnfEl('pdb-anf-newtitle').focus();
+    }
+}
+
+/* Weitere Anfrage anlegen und zu ihr wechseln */
 function pdbAnfCreate() {
     var title = pdbAnfEl('pdb-anf-newtitle').value;
-    pdbAnfPost({ action: 'list_create', title: title }).then(function(res) {
+    pdbAnfPost({ action: 'list_create', title: title, sender: pdbAnfEl('pdb-anf-sender').value }).then(function(res) {
         if (res.success) {
-            pdbAnfEl('pdb-anf-newtitle').value = '';
             pdbAnfLoadLists(res.id);
         } else {
             pdbAnfFlash(res.error || 'Fehler.', false);
         }
+    });
+}
+
+/* Erste Anfrage automatisch anlegen, bevor die erste Pflanze hinzugefuegt wird (Titel und Betriebsname aus dem Kopf) */
+function pdbAnfEnsureList() {
+    if (pdbAnfListId) { return Promise.resolve(true); }
+    var sender = pdbAnfEl('pdb-anf-sender').value;
+    var title = pdbAnfEl('pdb-anf-title').value.trim() || pdbAnfToday();
+    return pdbAnfPost({ action: 'list_create', title: title, sender: sender }).then(function(res) {
+        if (!res.success) { pdbAnfFlash(res.error || 'Fehler.', false); return false; }
+        pdbAnfRememberSender(sender);
+        pdbAnfListId = res.id;
+        pdbAnfListCount = 1;
+        pdbAnfTitles[res.id] = res.title;
+        pdbAnfSenders[res.id] = sender;
+        pdbAnfStoreList(res.id);
+        pdbAnfEl('pdb-anf-title').value = res.title;
+        pdbAnfSetLinks(res.id);
+        pdbAnfShowHead();
+        return true;
     });
 }
 
@@ -229,7 +357,7 @@ function pdbAnfDelete() {
     var t = pdbAnfTitles[pdbAnfListId] || 'Anfrage';
     if (!confirm('«' + t + '» mit allen Pflanzen löschen?')) { return; }
     pdbAnfPost({ action: 'list_delete', list_id: pdbAnfListId }).then(function(res) {
-        if (res.success) { pdbAnfLoadLists(0); } else { pdbAnfFlash(res.error || 'Fehler.', false); }
+        if (res.success) { pdbAnfListId = 0; pdbAnfLoadLists(0); } else { pdbAnfFlash(res.error || 'Fehler.', false); }
     });
 }
 
@@ -252,29 +380,40 @@ function pdbAnfAddMaster() {
     var ids = [];
     document.querySelectorAll('.pdb-search-cb:checked').forEach(function(cb) { ids.push(cb.value); });
     if (!ids.length) { return; }
-    pdbAnfPost({ action: 'add_master', list_id: pdbAnfListId, plant_ids: ids }).then(function(res) {
-        pdbAnfAfterAdd(res, []);
-        if (res.success) { pdbAnfSearchClear(); }
+    pdbAnfEnsureList().then(function(ok) {
+        if (!ok) { return; }
+        pdbAnfPost({ action: 'add_master', list_id: pdbAnfListId, plant_ids: ids }).then(function(res) {
+            pdbAnfAfterAdd(res, []);
+            if (res.success) { pdbAnfSearchClear(); }
+        });
     });
 }
 
 function pdbAnfAddFree() {
-    pdbAnfPost({
-        action: 'add_free', list_id: pdbAnfListId,
-        genus: pdbAnfEl('pdb-anf-genus').value,
-        species: pdbAnfEl('pdb-anf-species').value,
-        cultivar: pdbAnfEl('pdb-anf-cultivar').value
-    }).then(function(res) {
-        pdbAnfAfterAdd(res, ['pdb-anf-genus', 'pdb-anf-species', 'pdb-anf-cultivar']);
-        if (res.success) { pdbAnfEl('pdb-anf-genus').focus(); }
+    var genus = pdbAnfEl('pdb-anf-genus').value, species = pdbAnfEl('pdb-anf-species').value, cultivar = pdbAnfEl('pdb-anf-cultivar').value;
+    /* ohne Gattung nichts anlegen: sonst entstuende eine leere Anfrage */
+    if (!genus.trim()) {
+        pdbAnfFlash('Bitte mindestens eine Gattung angeben.', false);
+        pdbAnfEl('pdb-anf-genus').focus();
+        return;
+    }
+    pdbAnfEnsureList().then(function(ok) {
+        if (!ok) { return; }
+        pdbAnfPost({ action: 'add_free', list_id: pdbAnfListId, genus: genus, species: species, cultivar: cultivar }).then(function(res) {
+            pdbAnfAfterAdd(res, ['pdb-anf-genus', 'pdb-anf-species', 'pdb-anf-cultivar']);
+            if (res.success) { pdbAnfEl('pdb-anf-genus').focus(); }
+        });
     });
 }
 
 function pdbAnfAddPaste() {
     var t = pdbAnfEl('pdb-anf-paste').value;
     if (!t.trim()) { return; }
-    pdbAnfPost({ action: 'add_paste', list_id: pdbAnfListId, text: t }).then(function(res) {
-        pdbAnfAfterAdd(res, res.success ? ['pdb-anf-paste'] : []);
+    pdbAnfEnsureList().then(function(ok) {
+        if (!ok) { return; }
+        pdbAnfPost({ action: 'add_paste', list_id: pdbAnfListId, text: t }).then(function(res) {
+            pdbAnfAfterAdd(res, res.success ? ['pdb-anf-paste'] : []);
+        });
     });
 }
 
@@ -356,5 +495,4 @@ document.addEventListener('DOMContentLoaded', function() {
     pdbAnfLoadLists(0);
 });
 </script>
-{% endif %}
 {% endblock %}

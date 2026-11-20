@@ -9,17 +9,23 @@
     color: #333;
 }
 
-/* --- Listenwahl --- */
+/* --- Kopf: Titel, Betriebsname, Zeile "Meine Anfragen" --- */
 .pdb-anf-listbar {
     display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 8px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
     margin-bottom: 10px;
     font-size: 13px;
 }
-.pdb-anf-listbar label { font-weight: bold; margin: 0; }
-.pdb-anf-listbar .pdb-anf-spacer { flex: 1 1 auto; }
+/* alles untereinander und links: Feldname, gruene Anleitung, Feld (wie in den Bloecken unten) */
+.pdb-anf-field { display: flex; flex-direction: column; align-items: flex-start; }
+.pdb-anf-listbar .pdb-anf-label { display: block; margin: 0 0 2px; font-size: 13px; font-weight: bold; color: #000; }
+/* Zeile "Meine Anfragen": Auswahl (ab zwei Anfragen) und die beiden Zweit-Buttons nebeneinander */
+.pdb-anf-lists { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; }
+.pdb-anf-morebtns { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+/* das Theme gibt Buttons einen Aussenabstand nach unten: im Kopf zuruecknehmen, sonst sitzt die Auswahl neben den Buttons zu hoch */
+.pdb-anf-listbar .pdb-btn { margin-bottom: 0; }
 
 .pdb-anfrage-container .pdb-anf-input,
 .pdb-anfrage-container select.pdb-anf-input,
@@ -45,7 +51,7 @@
 .pdb-anfrage-container input.pdb-anf-input,
 .pdb-anfrage-container select.pdb-anf-input { margin: 0; height: 28px; }
 .pdb-anf-listbar select.pdb-anf-input { display: inline-block; width: auto; min-width: 220px; max-width: 100%; }
-.pdb-anf-listbar input.pdb-anf-input { width: 240px; max-width: 100%; }
+.pdb-anf-listbar input.pdb-anf-input { width: 320px; max-width: 100%; }
 .pdb-anfrage-container .pdb-anf-free .pdb-anf-input { width: 100%; }
 .pdb-anfrage-container textarea.pdb-anf-input { margin: 0 0 6px; }
 
@@ -58,27 +64,55 @@
     border-radius: 4px;
     font-size: 13px;
 }
-.pdb-anf-block > .pdb-anf-title,
-.pdb-anf-block > summary {
-    margin: 0 0 6px;
+/* Einheitlicher Aufbau jedes Bereichs: Feldname (schwarz, fett), darunter die Anleitung (gruen, halbfett), dann das Feld */
+.pdb-anf-block .pdb-anf-label,
+.pdb-anf-block > summary.pdb-anf-label {
+    display: block;
+    margin: 0 0 2px;
     font-size: 13px;
     font-weight: bold;
-    color: #4B8223;
-    cursor: default;
+    color: #000;
 }
-.pdb-anf-block > summary { cursor: pointer; margin-bottom: 0; }
-.pdb-anf-block[open] > summary { margin-bottom: 6px; }
+/* Das Theme faerbt geoeffnete summary-Zeilen grau - hier zwingend schwarz wie die anderen Feldnamen */
+details.pdb-anf-block > summary.pdb-anf-label,
+details.pdb-anf-block[open] > summary.pdb-anf-label,
+details.pdb-anf-block > summary.pdb-anf-label:focus { color: #000; cursor: pointer; }
+.pdb-anf-help {
+    margin: 0 0 6px;
+    font-size: 12.5px;
+    font-weight: 600;
+    line-height: 1.35;
+    color: #4B8223;
+}
+
+/* Suchfeld im Bereich: gleiche leichte Optik wie die anderen Felder (liste.css gibt ihm sonst einen kraeftigen Rahmen) */
+.pdb-anf-block .pdb-search-box { margin: 0; }
+.pdb-anfrage-container .pdb-search-box input[type="search"].pdb-anf-input {
+    width: 100%;
+    height: 28px;
+    padding: 4px 8px;
+    font-size: 13px;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+}
+.pdb-anfrage-container .pdb-search-box input[type="search"].pdb-anf-input:focus {
+    border-color: #4B8223;
+    box-shadow: 0 0 0 2px rgba(75, 130, 35, 0.2);
+}
+.pdb-anfrage-container .pdb-search-results { margin: 8px 0 0; }
+.pdb-anfrage-container .pdb-aufnehmen-bar { margin: 8px 0 0; }
 
 .pdb-anf-free {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 8px;
     align-items: end;
+    margin-bottom: 6px; /* Abstand zum Button darunter, wie beim Textfeld in "Liste einfuegen" */
 }
-.pdb-anf-free label { display: block; margin: 0 0 2px; font-weight: bold; font-size: 13px; }
+.pdb-anf-free label { display: block; margin: 0 0 2px; font-weight: bold; font-size: 13px; color: #000; }
 .pdb-anf-free .pdb-anf-input { width: 100%; }
-.pdb-anf-paste { display: block; width: 100%; min-height: 90px; margin-bottom: 6px; resize: vertical; }
-.pdb-anf-hint { margin: 4px 0 0; font-size: 12px; color: #666; }
+/* Liste einfuegen: drei Zeilen sichtbar, per Ziehen am Rand vergroesserbar */
+.pdb-anf-paste { display: block; width: 100%; min-height: 0; margin-bottom: 6px; resize: vertical; }
 
 @media (max-width: 640px) {
     .pdb-anf-free { grid-template-columns: 1fr; }
@@ -90,18 +124,19 @@
 .pdb-anf-msg.is-err { color: #c62828; }
 
 /* --- Export-Leiste --- */
+.pdb-anf-countline { margin: 0 0 6px; }
 .pdb-anf-exportbar {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     gap: 8px;
-    margin-bottom: 8px;
+    margin: 10px 0 0;
 }
 /* custom.css faerbt alle Links per !important, daher hier ebenfalls */
 .pdb-anf-exportbar a.pdb-btn { display: inline-block; text-decoration: none; color: #fff !important; }
 .pdb-anf-exportbar a.pdb-btn.pdb-btn-secondary { color: #4B8223 !important; }
 .pdb-anf-exportbar a.pdb-btn.is-disabled { opacity: 0.45; pointer-events: none; }
-.pdb-anf-exportbar .pdb-result-info { margin-left: auto; }
+.pdb-anf-exportbar a.pdb-btn { margin-bottom: 0; }
 
 /* --- Tabelle --- */
 .pdb-anfrage-container .pdb-anf-note {
